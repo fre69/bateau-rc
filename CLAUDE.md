@@ -29,7 +29,7 @@ s'additionnent et le bateau part en lacet en ligne droite.
 | `MONTAGE.md` | Notice utilisateur (impression, collage, câblage, mise à l'eau). |
 
 Régénérer : `python generate_pieces.py` (Windows, Python 3.14).
-Deps : `trimesh manifold3d shapely numpy scipy networkx rtree pillow`.
+Deps : `trimesh manifold3d shapely numpy scipy networkx rtree pillow mapbox_earcut`.
 Rendus via **OpenSCAD Nightly** (`C:\Program Files\OpenSCAD (Nightly)\openscad.exe`) ; sans lui
 le script génère quand même tous les STL.
 
@@ -107,7 +107,15 @@ GDX=275      anneaux ; SADDLE_ID=32.4 berceau (bagues TPU 24/27.7/30)
     puits d'un sponson. Vérifier le passage de TOUT objet embarqué ; les piles, elles, se
     changent boîtier en place (son dessus affleure l'écoutille).
 
-14. **Le tableau COLLISIONS D'ASSEMBLAGE du run doit rester à ~0** (seuil 0,05 cm³).
+14. **Boucher un loft par un éventail depuis le centroïde est interdit sur une section
+    CONCAVE** (tunnel, raise_top, lèvre du pont) : les triangles du bouchon se chevauchent
+    et se retournent dans le plan, et manifold3d ressort du bruit déchiqueté sur TOUTE la
+    dernière travée du loft (paroi pincée < 0,5 mm → trous au slicing, vus à l'arrière,
+    à XJ et aux pointes d'étraves). `loft()` triangule ses bouchons par earcut
+    (`mapbox_earcut`), orienté par aire signée. Les solides d'entrée paraissaient sains
+    (coupes propres, watertight) : le défaut n'apparaissait qu'APRÈS le booléen.
+
+15. **Le tableau COLLISIONS D'ASSEMBLAGE du run doit rester à ~0** (seuil 0,05 cm³).
     C'est lui qui a attrapé : la muraille à double épaisseur (offset `o` soustrait deux fois
     dans `ye`), la plinthe plongeant dans les murs d'étraves, les bouts de pattes d'anneau
     raclant le bouge, et les bossages d'anneaux dans la muraille (d'où `GFY=16`).

@@ -3,7 +3,7 @@
 # Recup Nikko N-Blaster : 2 moteurs brosses (skid-steer), carte RC 27/40 MHz tout-ou-rien.
 # Usage : python generate_pieces.py   ->  stl/*.stl + stl/_assemblage/ + apercu_catamaran.png
 import os, math, shutil, subprocess
-import numpy as np, trimesh
+import numpy as np, trimesh, mapbox_earcut
 from trimesh.creation import box, cylinder, extrude_polygon, icosphere, revolve
 from shapely.geometry import Polygon, LineString
 
@@ -140,10 +140,19 @@ def loft(secs):
         a, b = i*n, (i+1)*n
         for j in range(n):
             k = (j+1) % n; F.append([a+j, a+k, b+j]); F.append([a+k, b+k, b+j])
+    # bouchons : earcut, PAS un eventail depuis le centroide -- sur une section
+    # concave (tunnel, raise_top, levre du pont) l'eventail s'auto-intersecte et
+    # manifold ressort du bruit sur toute la derniere travee (parois trouees au slicing)
     for idx, sg in ((0, -1), (m-1, 1)):
-        base = idx*n; c = len(V); V = np.vstack([V, S[idx].mean(axis=0)])
-        for j in range(n):
-            k = (j+1) % n; F.append([c, base+j, base+k][::sg])
+        base = idx*n; sec = S[idx]
+        ax = int(np.argmin(np.ptp(sec, axis=0)))     # axe constant de la section
+        u, v = (ax+1) % 3, (ax+2) % 3                # ordre cyclique : CCW en (u,v) = normale +ax
+        ring = np.ascontiguousarray(sec[:, (u, v)])
+        tris = mapbox_earcut.triangulate_float64(ring, np.array([n], dtype=np.uint32)).reshape(-1, 3)
+        for t in tris:
+            p = ring[t]
+            ccw = (p[1,0]-p[0,0])*(p[2,1]-p[0,1]) - (p[1,1]-p[0,1])*(p[2,0]-p[0,0]) > 0
+            F.append(list(base+t) if ccw == (sg > 0) else list(base+t[::-1]))
     mm = trimesh.Trimesh(vertices=V, faces=np.array(F), process=True)
     mm.fix_normals(); return mm
 
