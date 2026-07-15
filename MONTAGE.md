@@ -30,8 +30,8 @@ Un avant + un arrière = rotation sur place.
 | `02_pont` | 1 | PETG | Dessus vers le haut, supports sous le pont (pièce séparée = supports faciles). 4 périmètres. |
 | `03_capot` | 1 | PETG | Dôme vers le haut, aucun support (convexe). |
 | `04_joint_capot_TPU` | 1 | TPU 95A | 100 %, pas d'ironing. |
-| `05_pylone_moteur` | **2** | PETG | Debout (bride en bas), **support sous la nacelle**. 4 périmètres, 40 %. |
-| `06_bague_moteur_XX` | 2 (ta taille) | TPU | 100 % — souple et adhérente. Berceau Ø32,4 ; bagues pour moteurs Ø24 / 27,7 / 30. |
+| `05_pylone_moteur` | **2** | PETG | Debout (bride en bas), **support sous la nacelle + sous la coiffe arrière-moteur** (l'arche fermée surplombe le vide). 4 périmètres, 40 %. |
+| `06_bague_moteur_24_0mm` | **2** | TPU | 100 % — souple et adhérente. Berceau Ø32,4, moteur Ø24, bague **fendue** (se clipse autour du corps). |
 | `07_anneau_protection_D100` ou `_D90` | **2** | PETG | Exporté **à plat** : anneau et pattes sur le plateau, les deux tours de fixation montent verticalement. 4 périmètres, 40 %. Prends le diamètre assorti à tes hélices. |
 | `08_helice_*_CW` + `*_CCW` | 1 de chaque | PETG | À plat, 4 périmètres, 40 %, couches 0,12 mm. |
 | `09_pile_factice_AA` | 1 | PETG | 100 %. |
@@ -75,8 +75,14 @@ les couples s'additionnent → lacet permanent, même à fond tout droit.
 **Vérification obligatoire avant l'eau :** commande « avant », main derrière chaque hélice —
 les deux doivent souffler **vers l'arrière**.
 
-Alésage : mesure l'axe moteur (2,0 / 2,3 / 3,17 mm) et prends le fichier correspondant.
-En cas de doute, prends l'alésage en dessous et alèse au foret.
+**Accouplement (broche à froid sur le pignon).** On **garde** le pignon métallique (Ø ≈ 7 mm)
+sur l'axe : le moyeu de l'hélice a un alésage rond légèrement sous-coté (Ø 6,4 mm). On **presse**
+le moyeu sur le pignon (à l'étau ou au serre-joint, bien droit) : les dents taillent leurs
+cannelures dans le PETG → entraînement positif, auto-centré, **sans colle** ni méplat. Un lamage
+d'amorce Ø 8 guide l'entrée ; le petit trou Ø 2,6 traversant sert de pilote et permet d'éjecter
+l'hélice au chasse-goupille. Astuce : tremper le moyeu 30 s dans l'eau chaude ramollit le PETG
+et facilite la presse (il durcit en refroidissant). Si trop dur → agrandir un peu (`GRIP_I`) ;
+si ça tourne fou → réduire l'alésage. Une goutte de cyano dans les cannelures verrouille l'axial.
 
 **Jamais de rotation sans les anneaux** — une hélice PETG à plusieurs milliers de tr/min coupe.
 
@@ -85,7 +91,8 @@ En cas de doute, prends l'alésage en dessous et alèse au foret.
 ## 5. Montage mécanique
 
 **Récupération sur la voiture** (photographie la carte avant de dessouder, garde du fil) :
-2 moteurs sortis de leurs réducteurs (**pignon retiré**), carte RC + antenne + connecteur batterie.
+2 moteurs sortis de leurs réducteurs (**pignon métallique conservé** — il sert d'accouplement
+d'hélice, cf. §4), carte RC + antenne + connecteur batterie.
 
 1. **Pont sur coque** (§3), laisse sécher.
 2. **Pylônes** : glisse l'arrière de la bride sous la **griffe** du plateau (x = 240), puis
@@ -93,9 +100,18 @@ En cas de doute, prends l'alésage en dessous et alèse au foret.
    passe verticalement. Toutes les vis du bateau sont **borgnes** : rien ne traverse vers l'eau.
 3. **Anneaux** : 2 vis M3 chacun dans les pastilles du pont (x = 289) — à faire **avant** de
    monter les hélices. Les pattes longent l'extérieur du disque et ne rentrent qu'**sous** les pales.
-4. **Moteur** dans le berceau : bague `06` à ta taille, 2 colliers rilsan dans les fentes.
-   **Fais glisser le moteur** dans le berceau pour centrer l'hélice dans l'anneau (x ≈ 280).
-5. **Hélice** sur l'axe, à force (goutte de cyano si lâche).
+4. **Moteur** — préparer le flasque arrière (côté déparasitage) AVANT le montage :
+   - **coupe les 2 oreilles triangulaires** du flasque (ancienne fixation du réducteur, inutile) ;
+   - replie les 2 selfs contre le flasque, **noie les soudures dans une goutte de colle chaude ou
+     d'époxy** (anti-casse + isolation + étanchéité), **garde le condensateur** (déparasitage
+     indispensable : sans lui le moteur brouille le récepteur AM 27/40 MHz) ;
+   - clipse la bague fendue `06` (Ø24) autour du corps.
+   Puis **engage le moteur par l'arrière ouvert du berceau, flasque arrière EN PREMIER dans la
+   coiffe** — elle cache et protège le déparasitage (côté hélice laissé ouvert = le moteur respire,
+   refroidi par l'aspiration de l'hélice). 2 colliers rilsan dans les fentes. **Fais glisser le
+   moteur** pour centrer l'hélice dans l'anneau (x ≈ 280). Les fils sortent par le **bas ouvert de
+   la coiffe** puis descendent le long du pylône.
+5. **Hélice** pressée sur le pignon (broche à froid, cf. §4) — bien droite, à l'étau.
 6. **Câblage** : fils moteurs le long du bord de fuite du pylône (collier), puis dans les
    **passe-fils Ø5,5** du pont (x = 254, ±22) → noix de silicone. Antenne : ressortie par le
    même passe-fils, scotchée en zigzag sous le livet ou le long du pont.

@@ -7,7 +7,9 @@ capsule cockpit sur plinthe plane, pylônes profilés, anneaux-conduits.
 
 ## Contexte matériel (non négociable, c'est de la récup)
 
-- **2 moteurs brossés** (un par côté, skid-steer) sortis de leurs réducteurs, pignon retiré.
+- **2 moteurs brossés** (un par côté, skid-steer) sortis de leurs réducteurs. **Pignon
+  métallique Ø7 conservé sur l'axe (2,3 mm)** : il sert d'accouplement d'hélice (moyeu broche
+  à froid, alésage Ø6,4 sous-coté — voir `make_prop` et `PIGN_D`/`GRIP_I`). Pas de méplat ni colle.
 - **Carte RC 27/40 MHz** : commande **tout-ou-rien**, pas de proportionnel. Pièce irremplaçable.
 - **Pack 6 V NiMH mort** → 5× AA NiMH + pile factice imprimée (support 6 piles).
 - Pas d'achat en ligne : imprimante FDM, PETG, TPU 95A, visserie M3, rilsan.

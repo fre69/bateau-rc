@@ -45,8 +45,14 @@ CANH          = 26.0                # hauteur de la capsule
 PYX, PYY  = 240.0, 66.0             # pylones : position x, ecartement y des helices
 ZMOUNT    = 88.5                    # plan de montage commun pylones + anneaux
 MOT_Z     = 76.0                    # axe moteur au-dessus de ZMOUNT
-SADDLE_ID = 32.4                    # berceau moteur (bagues 24 / 27.7 / 30)
+SADDLE_ID = 32.4                    # berceau moteur (bague 24 mm : corps moteur Ø24)
 NAC_R, NAC_L, NAC_X = 19.0, 36.0, 10.0  # nacelle : rayon, longueur, decalage x local
+# --- accouplement helice sur le pignon metallique CONSERVE sur l'axe (broche a froid) ---
+PIGN_D  = 7.0     # diametre exterieur du pignon (mesure ~7 mm au pied a coulisse)
+PIGN_L  = 8.0     # longueur du pignon le long de l'axe (mesure)
+GRIP_I  = 0.6     # interference de broche : alesage = PIGN_D-GRIP_I, dents mordent GRIP_I/2 au rayon
+SHAFT_D = 2.3     # arbre nu (sert de pilote de centrage / trou d'ejection)
+HOUS_L  = 14.0    # longueur de la coiffe arriere-moteur (bloc 30 mm + deparasitage ~5 mm = 35 mm total)
 GDX, GFY  = 275.0, 16.0             # anneaux : centre x, demi-ecart des pieds (16 : pas plus,
                                     # sinon les bossages exterieurs percutent la muraille)
 WIREX, WIREY = 254.0, 22.0          # passe-fils dans le pont
@@ -316,7 +322,18 @@ def make_pylon():
     inn = cylinder(radius=SADDLE_ID/2, height=NAC_L+10, transform=RX(np.pi/2, [0, 1, 0]))
     sad = D([out, inn]); sad.apply_translation([NAC_X, 0, MOT_Z])
     sad = I([sad, box([120, 120, 120], transform=TR([NAC_X, 0, MOT_Z-60]))])   # demi-coquille
-    p = U([fl, fin, sad])
+    # casquette / capot arriere-moteur INTEGRE : coiffe fermee sur le flasque arriere (cote etrave)
+    # qui CACHE et protege le deparasitage (2 selfs + condo). Meme Ø que la nacelle, face avant
+    # pleine (deflecteur), OUVERTE EN BAS -> sortie fils + egouttage + un filet d'air (pas de
+    # surchauffe, pas de caisson etanche). Prealable : couper les oreilles triangulaires du flasque.
+    fx0  = NAC_X - NAC_L/2                                       # nez du berceau (x=-8)
+    fout = cylinder(radius=NAC_R, height=HOUS_L, transform=RX(np.pi/2, [0, 1, 0]))
+    fout.apply_translation([fx0 - HOUS_L/2 + 3, 0, MOT_Z])       # tube exterieur
+    fbor = cylinder(radius=SADDLE_ID/2, height=HOUS_L, transform=RX(np.pi/2, [0, 1, 0]))
+    fbor.apply_translation([fx0 - HOUS_L/2 + 6, 0, MOT_Z])       # alesage decale -> face AVANT pleine (~3 mm)
+    fair = D([fout, fbor])
+    fair = I([fair, box([HOUS_L+8, 60, 60], transform=TR([fx0 - HOUS_L/2 + 3, 0, MOT_Z+30-9]))])  # bas ouvert
+    p = U([fl, fin, sad, fair])
     cuts = [box([4, 60, 20], transform=TR([NAC_X-12, 0, MOT_Z-13])),           # fentes rilsan
             box([4, 60, 20], transform=TR([NAC_X+12, 0, MOT_Z-13]))]
     cuts += [cylinder(radius=1.75, height=12, transform=TR([-22, sy, 2]))
@@ -360,14 +377,26 @@ def blade_sec(r, Dm):
     for s in np.linspace(0.5, -0.5, 14)[1:-1]: pts.append((ch*s+swp, -th/2*math.sqrt(max(1-(2*s)**2, 0))**0.8))
     return [(c*math.sin(beta)-t*math.cos(beta), r, c*math.cos(beta)+t*math.sin(beta)) for c, t in pts]
 
-def make_prop(Dm, bore, ccw=False):
+def make_prop(Dm, ccw=False):
     R = Dm/2
     bl = loft([blade_sec(r, Dm) for r in np.linspace(9, R-1.0, 22)])
     parts = []
     for k in range(3):
         b = bl.copy(); b.apply_transform(RX(k*2*np.pi/3, [0, 0, 1])); parts.append(b)
-    parts.append(cylinder(radius=9.5, height=13))
-    p = U(parts); p = D([p, cylinder(radius=bore/2, height=30)])
+    grip_h = PIGN_L + 2.0                                       # profondeur de prise sur le pignon
+    HUB_H  = grip_h + 6.0                                       # + fond plein derriere le pignon
+    parts.append(cylinder(radius=9.5, height=HUB_H))            # moyeu Ø19
+    p = U(parts)
+    # --- accouplement broche a froid sur le pignon conserve (Ø PIGN_D) ---
+    # trou rond sous-cote : en pressant, les dents du pignon taillent leurs
+    # cannelures dans le PETG -> entrainement positif, auto-centre, sans colle.
+    zf   = -HUB_H/2                                             # face moteur (bas du moyeu)
+    grip = cylinder(radius=(PIGN_D-GRIP_I)/2, height=grip_h)
+    grip.apply_translation([0, 0, zf+grip_h/2])
+    lead = cylinder(radius=(PIGN_D+1.0)/2, height=2.0)          # lamage d'amorce a l'entree
+    lead.apply_translation([0, 0, zf+1.0])
+    pilot = cylinder(radius=(SHAFT_D+0.3)/2, height=HUB_H+2)    # pilote centrage / ejection (traversant)
+    p = D([p, grip, lead, pilot])
     if ccw: p.apply_scale([1, -1, 1]); p.fix_normals()
     return p
 
@@ -399,8 +428,7 @@ if __name__ == "__main__":
     canopy = save(grounded(make_canopy()), "03_capot")
     gasket = save(grounded(make_gasket()), "04_joint_capot_TPU")
     pylon  = save(make_pylon(), "05_pylone_moteur_x2")
-    for d_ in (24.0, 27.7, 30.0):
-        save(make_shim(d_), "06_bague_moteur_%smm" % str(d_).replace('.', '_'))
+    save(make_shim(24.0), "06_bague_moteur_24_0mm")             # corps moteur Ø24 (mesure)
     guards = {}
     for pd in (100.0, 90.0):
         g = make_guard(pd)
@@ -408,12 +436,10 @@ if __name__ == "__main__":
         guards[pd] = g
         save(grounded(gp), "07_anneau_protection_D%d_x2" % pd)
     props = {}
-    for Dm in (100.0, 90.0):
-        for bo in (2.0, 2.3, 3.17):
-            bs_ = str(bo).replace('.', '_')
-            pr = save(grounded(make_prop(Dm, bo, False)), "08_helice_D%d_alesage%s_CW" % (Dm, bs_))
-            save(grounded(make_prop(Dm, bo, True)),  "08_helice_D%d_alesage%s_CCW" % (Dm, bs_))
-            if bo == 2.0: props[Dm] = pr
+    for Dm in (100.0, 90.0):                                         # D100 (6 V) / D90 (option 7,2 V)
+        pr = save(grounded(make_prop(Dm, False)), "08_helice_D%d_pignon7_CW" % Dm)
+        save(grounded(make_prop(Dm, True)),  "08_helice_D%d_pignon7_CCW" % Dm)
+        props[Dm] = pr
     save(make_dummy(), "09_pile_factice_AA")
     save(make_knob(),  "10_bouton_capot_x2")
 
@@ -436,7 +462,7 @@ if __name__ == "__main__":
     asm["anneaux"] = U([g1, g2])
     mots = []
     for sg in (1, -1):
-        mo = cylinder(radius=14, height=38, transform=RX(np.pi/2, [0, 1, 0]))
+        mo = cylinder(radius=12, height=30, transform=RX(np.pi/2, [0, 1, 0]))   # corps moteur Ø24 x 30
         mo.apply_translation([PYX+NAC_X, sg*PYY, AX])
         sh_ = cylinder(radius=1.6, height=26, transform=RX(np.pi/2, [0, 1, 0]))
         sh_.apply_translation([PYX+NAC_X+NAC_L/2+8, sg*PYY, AX])
@@ -444,7 +470,7 @@ if __name__ == "__main__":
     asm["moteurs"] = U(mots)
     prs = []
     for sg, ccw in ((1, False), (-1, True)):
-        pr = make_prop(100.0, 2.3, ccw)
+        pr = make_prop(100.0, ccw)
         pr.apply_transform(RX(np.pi/2, [0, 1, 0]))
         pr.apply_transform(RX(sg*0.5, [1, 0, 0]))
         pr.apply_translation([GDX, sg*PYY, AX])
