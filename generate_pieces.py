@@ -57,6 +57,52 @@ GDX, GFY  = 275.0, 16.0             # anneaux : centre x, demi-ecart des pieds (
                                     # sinon les bossages exterieurs percutent la muraille)
 WIREX, WIREY = 254.0, 22.0          # passe-fils dans le pont
 
+# ---------------------------------------------------- etanchement de l'etrave (piege n.16)
+# La cuve s'ouvre des x=22 (XNi) alors que le pont v2 ne commencait qu'a x=26 -> trou de
+# 4 mm en travers de chaque etrave (+ 0.9 mm a l'arriere). Deux facons de le traiter :
+#
+#   BOW_PATCH = True   RUSTINE -- geometrie du bateau DEJA IMPRIME (juillet 2026).
+#                      Pont court (26 -> 296.5) + 2 bouchons TPU rapportes (piece 11).
+#                      Ne PAS toucher tant qu'on veut des STL compatibles avec ces coques.
+#
+#   BOW_PATCH = False  CORRECTIF -- pour une NOUVELLE impression complete.
+#                      Pont rallonge (22.3 -> 297.1) : il couvre toute la cuve, avec le
+#                      meme jeu de collage de 0.3 mm au bout qu'il a deja sur les cotes.
+#                      Pas de bouchons -- ils entreraient en collision.
+BOW_PATCH  = True
+XPL0, XPL1 = 22.0, 26.0             # le trou : debut de la cavite -> debut du pont v2
+XPLC       = 20.0                   # la collerette deborde vers l'avant sur l'etrave PLEINE
+PLD        = 4.0                    # profondeur du teton dans la cuve
+PLCAP      = 1.4                    # collerette : affleure le nez du pont (93.23 vs 93.24)
+PLW        = 1.2                    # debord de la collerette sur le livet (livet = T = 1.6)
+PLGAP      = 0.3                    # JEU de montage. La v2.1 sortait un booleen sur la cavite,
+                                    # donc un ajustement EXACT : ca ne tenait que parce que la
+                                    # piece etait en TPU cense absorber. Elle est en PETG (soudable,
+                                    # comme la coque) -> il FAUT un jeu reel. 0.3 par face, comble
+                                    # a la soudure au fer + filament PETG.
+XD0 = XPL1 if BOW_PATCH else XPL0 + 0.3        # debut du pont
+XD1 = 296.5 if BOW_PATCH else L - 2.6 - 0.3    # fin du pont (cavite = L-2.6)
+
+# ------------------------------------------ cloison d'etrave a XJ (piege n.18)
+# A XJ, les etraves separees rejoignent la section a tunnel. XA (enveloppe) ET XAi (cavite)
+# demarrent tous deux exactement a XJ -> la soustraction ne laisse AUCUNE cloison sur la face
+# avant du pont-bras : le compartiment est ouvert plein nez (5 cm2, verifie au lance-rayons).
+# Meme bug que le piege n.16 : deux lofts qui demarrent au meme x, l'un soustrait de l'autre.
+# Piece rapportee, COLLEE en meme temps que le pont (elle est structurelle et etanche).
+BKX0, BKX1 = 95.0, 110.0            # travee de la cloison, de XJ vers l'arriere.
+                                    # 15 mm et pas 4 : ce n'est pas la largeur qui manquait mais
+                                    # l'aire collee. 979 mm2 sur l'arche contre 259 a 4 mm, pour
+                                    # 8 g de plus -- et elle S'ASSOIT sur l'arche au lieu de tenir
+                                    # sur un chant. Son dos ressort sous l'ecoutille : inspectable.
+                                    # Ne PAS l'elargir a travers les sponsons : ca fermerait
+                                    # l'etrave, toute infiltration y serait piegee et invidangeable.
+BKGAP      = 0.3                    # jeu lateral pour le cordon de colle.
+                                    # La demi-largeur N'EST PAS constante : le tunnel se retrecit
+                                    # vers l'arriere (30.41 a x=95, 28.6 a x=110). Une valeur figee
+                                    # deborde dans les sponsons et fait pousser deux pattes jusqu'a
+                                    # la quille -> la cloison SUIT yi_cav(x). Verifier la bbox : ~16
+                                    # mm de haut, pas 66.
+
 # ------------------------------------------------------------------- profils
 def sheer(x):   # tonture : haute a l'etrave, creuse, plate a l'arriere
     return SH_AFT + (SH_BOW-SH_AFT)*(1.0-x/L)**2.2
@@ -195,7 +241,7 @@ def deck_sect_nose(x):
     bs = bsx(x); yi = SY-bs; ye = SY+bs+fl_eff(x); sh = sheer(x)
     if ye-yi < 12: ye = yi+12
     c = (yi+ye)/2; hw = (ye-yi)/2
-    fair = min(1.0, 0.30+0.70*(x-26.0)/40.0)   # l'avant du pont s'efface dans la coque
+    fair = min(1.0, 0.30+0.70*(x-XD0)/40.0)    # l'avant du pont s'efface dans la coque
     return [(x, y, z) for y, z in deck_loop(sh, yi, ye, lambda y: crown(y-c, hw)*0.5, fair=fair)]
 
 def ell(a, b, z0, z1, cx=0.0, cy=0.0, res=72):
@@ -221,9 +267,9 @@ SCREWS_PYLON  = [(PYX-22, sg*PYY+sy) for sg in (1, -1) for sy in (-13, 13)]
 SCREWS_GUARD  = [(GDX+14, sg*(PYY+e)) for sg in (1, -1) for e in (-GFY, GFY)]
 
 def make_deck():
-    nose = loft([deck_sect_nose(x) for x in np.linspace(26, XJ, 18)])
+    nose = loft([deck_sect_nose(x) for x in np.linspace(XD0, XJ, 18)])
     n2 = nose.copy(); n2.apply_scale([1, -1, 1]); n2.fix_normals()
-    aft = loft([deck_sect_aft(x) for x in np.concatenate([np.linspace(XJ, 150, 10), np.linspace(155, 296.5, 18)])])
+    aft = loft([deck_sect_aft(x) for x in np.concatenate([np.linspace(XJ, 150, 10), np.linspace(155, XD1, 18)])])
     d = U([nose, n2, aft])
     # plinthe cockpit : dalle de 6.5 entre deux plans inclines (un bas PLAT plongerait
     # dans le haut des murs d'etraves a l'avant)
@@ -239,6 +285,12 @@ def make_deck():
     pads += [rrect(9, 13, 2, ZMOUNT-12, ZMOUNT+8.5, cx=PYX+30.5, cy=sg*PYY) for sg in (1, -1)]
     pads += [cylinder(radius=6.0, height=12, transform=TR([x, y, ZMOUNT-6])) for x, y in SCREWS_GUARD]
     d = U([d, seat]+pads)
+    # cloison avant VENUE DE FONDERIE quand on reimprime le pont (piege n.18) : plus de piece 13,
+    # plus de collage sur 3 faces, position garantie. Unie AVANT les decoupes -> l'ecoutille la
+    # retaille de x=101 a 110 et reste donc entierement ouverte ; la face qui etanche est a x=95,
+    # en avant de l'ecoutille, elle n'est pas touchee.
+    if not BOW_PATCH:
+        d = U([d, make_bow_bulkhead(up=1.5)])   # pas de `deck=` ici : elle mord dans la dalle -> corps=1
     # ecoutille + passe-fils
     cuts = [ell(HA, HB, 60, 140, cx=HX)]
     cuts += [cylinder(radius=2.75, height=60, transform=TR([WIREX, sg*WIREY, 85])) for sg in (1, -1)]
@@ -258,6 +310,61 @@ def make_deck():
     for x, y in SCREWS_GUARD:
         cuts.append(cylinder(radius=1.35, height=11, transform=TR([x, y, ZMOUNT-4.5])))
     return D([d, U(cuts)])
+
+# ------------------------------------------------ bouchons d'etrave (rustine)
+def make_bow_plug():
+    """Bouche le trou laisse a l'avant de chaque cuve (piege n.16) : la cavite s'ouvre
+    des x=XPL0 alors que le pont ne commence qu'a x=XPL1. Se pose sur des coques DEJA
+    imprimees ; a supprimer si le pont est un jour rallonge jusqu'a XPL0.
+      - teton : booleen sur la cavite RETREINTE de PLGAP -> 0.3 de jeu par face ;
+      - collerette : a cheval sur les 2 livets ET sur l'etrave pleine en avant de XPL0.
+        Indispensable -- les parois de la cuve y sont quasi verticales (21.95 -> 21.33 mm
+        sur 6 mm de fond) : un teton seul tomberait dans la coque.
+    Dessous sur la tonture, dessus PLAT (z=zc) -> s'imprime collerette sur le plateau,
+    teton en l'air, sans support. PETG : meme matiere que la coque, donc SOUDABLE au fer +
+    filament (le TPU ne se soude pas au PETG : 30-50 degres d'ecart de fusion)."""
+    cav = solid(T + PLGAP, True, False)
+    zc  = sheer(XPL1) + PLCAP
+    def bsec(x):                                     # bande qui suit la tonture
+        sh = sheer(x)
+        return [(x, -200.0, sh-PLD), (x, 200.0, sh-PLD), (x, 200.0, sh), (x, -200.0, sh)]
+    spig = I([cav, loft([bsec(x) for x in np.linspace(XPL0+PLGAP, XPL1-PLGAP, 6)])])
+    def csec(x):
+        sh = sheer(x); ym = SY-max(bsx(x)-T, 0.6)-PLW; yp = SY+max(bsx(x)-T, 0.6)+fl_eff(x)+PLW
+        return [(x, ym, sh), (x, yp, sh), (x, yp, zc), (x, ym, zc)]
+    c1 = loft([csec(x) for x in np.linspace(XPLC, XPL1-PLGAP, 8)])
+    c2 = c1.copy(); c2.apply_scale([1, -1, 1]); c2.fix_normals()      # piege n.6
+    return U([spig, c1, c2])
+
+# ----------------------------------------------- cloison d'etrave a XJ (piege n.18)
+def make_bow_bulkhead(deck=None, up=0.0):
+    """Le dessous du pont N'EST PAS a `sheer` : la dalle est bombee, son intrados est a
+    `sheer + crown(y)` (jusqu'a +5 dans l'axe). Une cloison arretee a `sheer` laisse un jour
+    de 5 mm sur 60 de large -- 3 cm2 d'ecope, invisible aux rayons tires sous le livet.
+    D'ou : on ne DEVINE pas ou s'arrete le pont, on le SOUSTRAIT.
+      deck != None -> piece rapportee 13 : epouse l'intrados reel, aucune collision.
+      deck == None -> version integree : elle MORD de `up` dans la dalle. Indispensable, sinon
+                      les surfaces se touchent sans se recouvrir et l'union ne fusionne pas
+                      (corps=2 : la cloison sort en piece separee sur le plateau)."""
+    """Ferme la face avant du compartiment, ouverte plein nez a XJ (piege n.18).
+    Booleen sur la cavite REELLE, donc l'emprise epouse exactement l'arche du tunnel en
+    dessous et les murailles internes des sponsons sur les cotes ; le dessus arrive pile
+    au dessous du pont. Se pose par le DESSUS, pont non colle, et se colle avec lui.
+"""
+    cav = solid(T, True, False)
+    # On monte FRANCHEMENT au-dessus de l'intrados (CRN = bombement max, +2 de marge) : le loft
+    # de la bande interpole en lignes droites entre ses stations et passerait sinon SOUS la courbe
+    # du livet (91.86 mesure contre 92.19 vise). C'est la soustraction du pont qui donne la cote
+    # exacte, pas ce plafond -- il doit juste etre trop haut partout.
+    zt = lambda x: sheer(x) + CRN + 2.0 + up
+    bsec = lambda x: [(x, -200.0, 0.0), (x, 200.0, 0.0), (x, 200.0, zt(x)), (x, -200.0, zt(x))]
+    band = loft([bsec(x) for x in np.linspace(BKX0, BKX1, 8)])
+    def ysec(x):    # suit la muraille interne du tunnel, qui se retrecit vers l'arriere
+        yl = SY - max(bsx(x)-T, 0.6) - BKGAP
+        return [(x, -yl, 0.0), (x, yl, 0.0), (x, yl, 200.0), (x, -yl, 200.0)]
+    ylim = loft([ysec(x) for x in np.linspace(BKX0-2.0, BKX1+2.0, 10)])
+    b = I([cav, band, ylim])
+    return D([b, deck]) if deck is not None else b
 
 # -------------------------------------------------------------------- capot
 def half_teardrop(af, ar, b, h, zc):
@@ -375,7 +482,9 @@ def blade_sec(r, Dm):
     pts = []
     for s in np.linspace(-0.5, 0.5, 12): pts.append((ch*s+swp, th/2*math.sqrt(max(1-(2*s)**2, 0))**0.8))
     for s in np.linspace(0.5, -0.5, 14)[1:-1]: pts.append((ch*s+swp, -th/2*math.sqrt(max(1-(2*s)**2, 0))**0.8))
-    return [(c*math.sin(beta)-t*math.cos(beta), r, c*math.cos(beta)+t*math.sin(beta)) for c, t in pts]
+    # beta = calage depuis le PLAN DE ROTATION -> corde = cos(beta) sur le tangentiel (x),
+    # sin(beta) sur l'axial (z). Inverser les deux donne un calage 90-beta (piege n.19).
+    return [(c*math.cos(beta)-t*math.sin(beta), r, c*math.sin(beta)+t*math.cos(beta)) for c, t in pts]
 
 def make_prop(Dm, ccw=False):
     R = Dm/2
@@ -416,6 +525,16 @@ def save(m, n):
 def grounded(m):
     g = m.copy(); g.apply_translation([0, 0, -g.bounds[0][2]]); return g
 
+def plugs_flat(m):
+    """les 2 bouchons d'etrave : retournes collerette sur le plateau, teton en l'air."""
+    g = m.copy(); g.apply_transform(RX(np.pi, [1, 0, 0]))
+    out = []
+    for i, b in enumerate(sorted(g.split(), key=lambda k: k.centroid[1])):
+        b = grounded(b)
+        b.apply_translation([-b.centroid[0], -b.centroid[1] + (i-0.5)*32.0, 0])
+        out.append(b)
+    return trimesh.util.concatenate(out)
+
 if __name__ == "__main__":
     for f in os.listdir(STL):
         fp = os.path.join(STL, f)
@@ -442,13 +561,23 @@ if __name__ == "__main__":
         props[Dm] = pr
     save(make_dummy(), "09_pile_factice_AA")
     save(make_knob(),  "10_bouton_capot_x2")
+    plugs = make_bow_plug() if BOW_PATCH else None     # rustine seulement (piege n.16)
+    if plugs is not None:
+        save(plugs_flat(plugs), "11_bouchon_etrave_x2")
+    # piece rapportee SEULEMENT en mode rustine : si on reimprime le pont, elle y est integree
+    bulk = make_bow_bulkhead(deck=deck) if BOW_PATCH else None
+    if bulk is not None:
+        bf = bulk.copy(); bf.apply_transform(RX(np.pi/2, [0, 1, 0]))   # a plat : croissant sur le plateau
+        save(grounded(bf), "13_cloison_avant")
 
     # ------------------------------------------------------------ assemblage
     print("\n=== ASSEMBLAGE (rendu) ===")
     AX = MOT_Z + ZMOUNT                       # axe helices (z bateau)
     asm = {}
-    asm["coque"]  = hull
-    asm["pont"]   = deck
+    asm["coque"]    = hull
+    asm["pont"]     = deck
+    if bulk is not None: asm["cloison"] = bulk
+    if plugs is not None: asm["bouchons"] = plugs
     beta = math.atan(-KSEAT)
     cano = make_canopy(); cano.apply_transform(RX(beta, [0, 1, 0])); cano.apply_translation([HX, 0, Z0SEAT+2.0])
     asm["capot"] = cano
@@ -479,7 +608,8 @@ if __name__ == "__main__":
     for k, m in asm.items():
         m.export(os.path.join(ASM, k+".stl"))
 
-    COLORS = {"coque": "#f2f0e9", "pont": "#3a3f44", "capot": "#20242a",
+    COLORS = {"coque": "#f2f0e9", "pont": "#3a3f44", "capot": "#20242a", "bouchons": "#8a1f1f",
+              "cloison": "#b8860b",
               "pylones": "#c8ccd0", "anneaux": "#c8ccd0", "moteurs": "#54585e", "helices": "#e8641b"}
     with open(os.path.join(ASM, "assemblage.scad"), "w") as f:
         for k in asm:
@@ -520,7 +650,10 @@ if __name__ == "__main__":
     print("\n=== COLLISIONS D'ASSEMBLAGE (les contacts plans comptent 0) ===")
     for a, b in [("coque", "pont"), ("pont", "pylones"), ("pont", "anneaux"),
                  ("pont", "capot"), ("coque", "pylones"), ("coque", "anneaux"),
-                 ("pylones", "anneaux"), ("capot", "pylones")]:
+                 ("pylones", "anneaux"), ("capot", "pylones"),
+                 ("helices", "anneaux"), ("helices", "pylones"),
+                 ] + ([("coque", "cloison"), ("pont", "cloison")] if bulk is not None else []) + \
+                ([("coque", "bouchons"), ("pont", "bouchons")] if plugs is not None else []):
         try:
             v = I([asm[a], asm[b]]).volume/1000.0
         except Exception:

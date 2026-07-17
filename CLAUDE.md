@@ -11,7 +11,8 @@ capsule cockpit sur plinthe plane, pylônes profilés, anneaux-conduits.
   métallique Ø7 conservé sur l'axe (2,3 mm)** : il sert d'accouplement d'hélice (moyeu broche
   à froid, alésage Ø6,4 sous-coté — voir `make_prop` et `PIGN_D`/`GRIP_I`). Pas de méplat ni colle.
 - **Carte RC 27/40 MHz** : commande **tout-ou-rien**, pas de proportionnel. Pièce irremplaçable.
-- **Pack 6 V NiMH mort** → 5× AA NiMH + pile factice imprimée (support 6 piles).
+- **Pack 6 V NiMH mort** → 5× AA NiMH + pile factice imprimée dans un support 6 piles
+  **du commerce (90×55×15)**, coincé à ~45° dans un puits de sponson (piège 17).
 - Pas d'achat en ligne : imprimante FDM, PETG, TPU 95A, visserie M3, rilsan.
 - Imprimante : **Elegoo Neptune 4 Plus**, plateau 320 × 320.
 
@@ -56,6 +57,12 @@ tunz()       plafond de tunnel 70→58 ; ARCH=11 cambrure
 HX=155       écoutille 108×72 ; plinthe SEATA/SEATB ; vis capot ±52/±34
 PYX=240, PYY=66   pylônes (ce sont EUX qui écartent les hélices) ; MOT_Z=76
 GDX=275      anneaux ; SADDLE_ID=32.4 berceau (bagues TPU 24/27.7/30)
+BOW_PATCH    True = bateau déjà imprimé (pont 26→296.5 + bouchons PETG pièce 11) ;
+             False = nouvelle impression (pont rallongé 22.3→297.1, pas de bouchons). Piège 16.
+BKX0/BKX1=95→110, BKGAP=0.3   cloison avant (pièce 13) : ferme le compartiment, ouvert
+             plein nez à XJ. Sa largeur SUIT yi_cav(x) — pas de valeur figée. Piège 18.
+Piles : AUCUNE pièce. Le support 6 piles du commerce se coince à 45° dans un puits de
+             sponson, contrepoids en face. Le compartiment central fait 5 mm. Piège 17.
 ```
 
 ## Pièges déjà rencontrés — à ne pas refaire
@@ -121,6 +128,95 @@ GDX=275      anneaux ; SADDLE_ID=32.4 berceau (bagues TPU 24/27.7/30)
     C'est lui qui a attrapé : la muraille à double épaisseur (offset `o` soustrait deux fois
     dans `ye`), la plinthe plongeant dans les murs d'étraves, les bouts de pattes d'anneau
     raclant le bouge, et les bossages d'anneaux dans la muraille (d'où `GFY=16`).
+
+16. **Le pont ne couvrait pas toute la cuve — et AUCUN contrôle ne l'a vu.** La cavité s'ouvre
+    dès `x=22` (`XNi`) alors que le pont ne commençait qu'à `x=26` (`make_deck`) : il restait un
+    **trou de 4 mm en travers de chaque étrave**, plus 0,9 mm à l'arrière (pont 296,5 / tableau
+    297,4). Coque et pont étaient chacun parfaitement manifold, et **le tableau du piège 15 ne
+    teste que les RECOUVREMENTS, jamais les MANQUES** : un trou ne déclenche rien. C'est
+    l'utilisateur qui l'a vu à l'œil, une fois les pièces imprimées.
+    Corollaire : **quand une pièce en couvre une autre, comparer leurs emprises** — un `bounds`
+    des deux pièces l'aurait attrapé en une ligne (`pont X 26→296.5` vs `cavité X 22→297.4`).
+    Les deux traitements sont câblés sur l'interrupteur **`BOW_PATCH`** (en tête du script) —
+    ils **s'excluent**, ne jamais les cumuler :
+    - **`True` (défaut) = le bateau déjà imprimé (juillet 2026).** Pont court (26 → 296,5) +
+      `11_bouchon_etrave_x2`, dessiné **par booléen sur la cavité**, en PETG (même matière que
+      la coque → soudable) avec `PLGAP=0.3` de jeu par face. ⚠️ **Ne jamais livrer un booléen sur
+      la cavité SANS jeu** : c'était le cas en v2.1, « justifié » par un TPU censé absorber — sauf
+      qu'un TPU 95A à 100 % dans un bloc trapu est rigide, et qu'il **ne se soude pas au PETG**. Ne pas y toucher tant qu'on veut des STL compatibles avec
+      ces coques. Sa collerette porte sur les livets **et** sur l'étrave pleine : les parois de
+      la cuve y sont quasi verticales (21,95 → 21,33 mm sur 6 mm), un téton seul tomberait dedans.
+    - **`False` = nouvelle impression complète.** Pont rallongé (22,3 → 297,1), jours ramenés à
+      **0,30 mm** — soit le jeu de collage que le pont a déjà sur les côtés, donc un trait de
+      colle et non un trou. Pas de bouchons (ils percuteraient le pont). Vérifié : `pont/coque`
+      = 0, et le garde-fou `ye-yi < 12` de `deck_sect_nose` ne se déclenche pas (25,4 mm à x=22,3).
+
+17. **Le « compartiment central » du MONTAGE v2 n'existait pas — et j'ai perdu une demi-journée
+    à essayer de le remplacer.** Le texte décrivait un logement « entre le plafond du tunnel et le
+    pont » pour le pack et la carte RC. Mesuré : **4,6 à 6,5 mm de haut** dans l'axe. Rien n'y entre.
+    **Ce que le tableau COLLISIONS ne teste pas :** il ne voit que les pièces **générées**. Pack,
+    carte RC, connecteur, câbles, **et même le joint `04`** (jamais mis dans `asm`) échappent à
+    toute vérification. La notice a donc pu décrire pendant des mois un montage impossible.
+    **Modéliser les objets embarqués, ne serait-ce qu'en boîtes, et les passer au tableau.**
+    **Les erreurs de méthode à ne pas refaire (toutes commises ici) :**
+    - **N'avoir mesuré que l'axe `y=0`.** L'arche y remonte à 79 → « 5 mm, rien ne rentre ». Faux :
+      le volume est **à côté de la bosse**. Sous l'écoutille, à `|y|≈30`, le fond tombe à **z≈17** —
+      75 mm sous la plinthe. **Cartographier le vide sur une grille (x,y) AVANT de dessiner.**
+    - **Avoir posé l'assise SUR l'écoutille** alors que c'est un **trou traversant** : 9,3 mm de
+      puits (plinthe 93,7 → dessous du pont 84,4) purement gaspillés.
+    - **Avoir jugé des affleurements avec un seuil réglé pour des collisions franches.** À 0,05 cm³,
+      une pièce qui mord 0,3 mm dans la plinthe passe pour « ok ». Pour un contact plan, afficher
+      le volume réel, pas un verdict.
+    - **Avoir validé un carter sans modéliser les contacts.** Gorges de 50,9 pour des piles de 50,5
+      → 1,75 mm par bout, un ressort en demande 5-6. Collisions à zéro parce que seules les piles
+      étaient modélisées.
+    **Solution retenue (v2.1) :** aucune pièce imprimée. Le support 6 piles du commerce entre par
+    l'écoutille et se **coince incliné à ~45° dans un puits de sponson**, contrepoids dans l'autre.
+    C'est l'utilisateur qui l'a trouvée pendant que je cherchais à tout poser à plat.
+    Cotes utiles si le sujet revient : dôme du capot = 87 × 59 au mieux (à +13 mm de la plinthe),
+    **longueur max 75 mm** ; rebord de plinthe porteur = **2,0 mm** ; l'écoutille ne passe à plat
+    qu'un rectangle **76 × 51**.
+
+18. **Le compartiment était OUVERT PLEIN NEZ à `XJ` — le pire défaut du lot, et le même que le
+    n°16.** À `XJ=95`, les étraves séparées rejoignent la section à tunnel : `XA` (enveloppe)
+    **et** `XAi` (cavité) démarrent tous deux exactement à `XJ`, donc la soustraction ne laisse
+    **aucune cloison** sur la face avant du pont-bras. Trou de **60,8 × 4,5-15,5 mm ≈ 5 cm²**,
+    orienté vers l'avant. Fermé par `13_cloison_avant` (booléen sur la cavité réelle), à coller
+    avec le pont.
+    - **La leçon qui compte : j'avais corrigé le n°16 sans vérifier l'AUTRE raccord de lofts.**
+      Un bug de ce type n'est jamais isolé — il y a un raccord à `XJ` et un à chaque bout. Après
+      toute correction de ce genre, **passer en revue TOUS les raccords** (`XN/XA`, `XNi/XAi`,
+      nez/arrière du pont).
+    - **L'INTRADOS DU PONT N'EST PAS A `sheer`.** `deck_loop` pose le dessous a `sheer + crown(y)`
+      — la dalle est bombee, elle remonte de **5 mm dans l'axe**. Une piece butee sur `sheer`
+      laisse un jour de 5 mm sur 60 de large. **Ne pas DEVINER ou s'arrete le pont : le
+      SOUSTRAIRE** (`D([piece, deck])`). Corollaire pour l'integrer au pont : il faut au contraire
+      qu'elle MORDE dedans (`up>0`), sinon les surfaces se touchent sans se recouvrir et l'union
+      ne fusionne pas -> `corps=2`, la piece sort separee sur le plateau. **Toujours verifier
+      `corps=1` apres une union censee fusionner.**
+    - Piege dans le piege : un loft interpole **en lignes droites** entre ses stations et passe
+      donc SOUS la courbe visee (91,86 mesure contre 92,19). Viser franchement trop haut et
+      laisser la soustraction donner la cote.
+    - **MES OUTILS DE CONTROLE ONT TOUS MENTI ICI, chacun pour une raison differente. A relire
+      avant d'en refaire un :**
+      * **Rayons / `contains` sur `U([coque, pont])`** : les deux solides se **touchent sans se
+        recouvrir** -> union degeneree -> resultats incoherents (`contains`=PLEIN la ou les rayons
+        disent VIDE). **Ne jamais unir des solides jointifs pour tester ; tester chaque maillage
+        separement** (`a.contains(p) | b.contains(p)`).
+      * **Rayons tires seulement sous le livet** (z=83-87) : ils ont declare « bouche » un trou qui
+        beait de 87 a 92. **Balayer TOUTE la hauteur du compartiment, bouge compris.**
+      * **Diffusion sans le capot** : l'ecoutille est un trou par construction, l'eau y entre
+        toujours -> « ouvert » quoi qu'on fasse. **Boucher l'ecoutille avec un couvercle fictif**
+        pour isoler la question posee.
+      * **Diffusion au pas de 1,5 mm sur des parois de 1,6 mm** : elle traverse les murailles sans
+        les voir. **Le pas doit etre tres inferieur a `T`.**
+      * **Volume residuel booleen** : comptait comme « trou » le vide **au-dessus** du pont.
+    - **Ce qui a marche, a chaque fois : le RENDU en coupe** (piege 9). Les trois defauts trouves
+      ce jour-la l'ont ete a l'oeil — deux par l'utilisateur, sur photo. **Regarder la piece.**
+    - Correctif propre pour une v2 (non implémenté) : faire démarrer `XAi` à `XJ+T` **et**
+      prolonger `XNi` jusqu'à `XJ+T`, de sorte que seule la région pont-bras (|y| < yi) reste
+      pleine → cloison de 1,6 mm venue de fonderie, sponsons toujours creux. Vérifier alors que
+      `13` est bien supprimée (elle entrerait en collision).
 
 ## Contraintes de conception à respecter
 
