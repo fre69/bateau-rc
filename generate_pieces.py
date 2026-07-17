@@ -56,6 +56,17 @@ HOUS_L  = 14.0    # longueur de la coiffe arriere-moteur (bloc 30 mm + deparasit
 GDX, GFY  = 275.0, 16.0             # anneaux : centre x, demi-ecart des pieds (16 : pas plus,
                                     # sinon les bossages exterieurs percutent la muraille)
 WIREX, WIREY = 254.0, 22.0          # passe-fils dans le pont
+# --- helices : pale FINE posee sur son BORD DE FUITE (piege n.19). La pale est une
+# plaque mince d'epaisseur PROP_TH qui repose sur une ligne (le bord de fuite, a z=0 sur
+# toute l'envergure) et monte en rampe au calage PROP_ALPHA. Seule l'arete touche le
+# plateau ; le dessous (a PROP_ALPHA du plateau) demande un peu de support COURT, mais les
+# bords sont EPAIS et FRANCS -> le support ne dechire rien (contrairement a la lentille v1
+# a bords en lame). Ni pleine (coin), ni flottante (lentille) : l'entre-deux voulu.
+PROP_ALPHA = 30.0                   # calage des pales (deg) = pente de la rampe / du dessous
+PROP_CH0, PROP_CH1 = 22.0, 12.0     # corde a l'emplanture / au bout
+PROP_SWEEP = 6.0                    # fleche (garde l'allure cimeterre)
+PROP_TH    = 2.8                    # epaisseur verticale (~2.4 mm perpendiculaire a 30 deg)
+PROP_FOOT  = 1.0                    # petit meplat sous le bord de fuite (accroche 1re couche)
 
 # ---------------------------------------------------- etanchement de l'etrave (piege n.16)
 # La cuve s'ouvre des x=22 (XNi) alors que le pont v2 ne commencait qu'a x=26 -> trou de
@@ -474,37 +485,38 @@ def make_guard(pd=100.0):
     return D([U(parts), U(cuts)])
 
 # ------------------------------------------------------------------ helices
-def blade_sec(r, Dm):
-    R = Dm/2; P = 0.72*Dm
-    beta = min(math.atan2(P, 2*np.pi*max(r, 6.0)), math.radians(46))
-    tt = (r-9)/(R-9); ch = 21-11*tt**1.15; th = 2.5-1.4*tt
-    swp = -0.5-7.0*tt**1.8                        # fleche -> pale en cimeterre
-    pts = []
-    for s in np.linspace(-0.5, 0.5, 12): pts.append((ch*s+swp, th/2*math.sqrt(max(1-(2*s)**2, 0))**0.8))
-    for s in np.linspace(0.5, -0.5, 14)[1:-1]: pts.append((ch*s+swp, -th/2*math.sqrt(max(1-(2*s)**2, 0))**0.8))
-    # beta = calage depuis le PLAN DE ROTATION -> corde = cos(beta) sur le tangentiel (x),
-    # sin(beta) sur l'axial (z). Inverser les deux donne un calage 90-beta (piege n.19).
-    return [(c*math.cos(beta)-t*math.sin(beta), r, c*math.sin(beta)+t*math.cos(beta)) for c, t in pts]
+def blade_ramp_sec(r, Dm):
+    """Section de pale FINE (plaque d'epaisseur PROP_TH) posee sur son BORD DE FUITE : le BF
+    est a z=0 (une ligne sur le plateau, sur toute l'envergure) et la pale monte en rampe au
+    calage PROP_ALPHA. Un petit meplat PROP_FOOT sous le BF accroche la 1re couche. Bords
+    francs et epais (pas de lame) -> le support court sous le dessous ne dechire rien (piege
+    n.19). 6 points, compte CONSTANT sur toutes les stations (impose par loft)."""
+    R = Dm/2; tt = float(np.clip((r-9)/(R-9), 0.0, 1.0))
+    c   = PROP_CH0 - (PROP_CH0-PROP_CH1)*tt              # corde
+    swp = -0.5 - PROP_SWEEP*tt**1.8                     # fleche (cimeterre)
+    a   = math.radians(PROP_ALPHA); tv = PROP_TH; foot = PROP_FOOT
+    hb  = (c-foot)*math.tan(a)                          # hauteur du BA (bas de la plaque)
+    pts = [(0.0, 0.0), (foot, 0.0), (c, hb),           # dessous : meplat BF puis rampe -> BA
+           (c, hb+tv), (foot, tv), (0.0, tv)]          # dessus : BA -> retour vers le BF
+    return [((u - c/2) + swp, r, z) for (u, z) in pts]
 
 def make_prop(Dm, ccw=False):
     R = Dm/2
-    bl = loft([blade_sec(r, Dm) for r in np.linspace(9, R-1.0, 22)])
+    bl = loft([blade_ramp_sec(r, Dm) for r in np.linspace(7.0, R-0.5, 20)])
     parts = []
     for k in range(3):
         b = bl.copy(); b.apply_transform(RX(k*2*np.pi/3, [0, 0, 1])); parts.append(b)
     grip_h = PIGN_L + 2.0                                       # profondeur de prise sur le pignon
     HUB_H  = grip_h + 6.0                                       # + fond plein derriere le pignon
-    parts.append(cylinder(radius=9.5, height=HUB_H))            # moyeu Ø19
+    parts.append(cylinder(radius=9.5, height=HUB_H, transform=TR([0, 0, HUB_H/2])))  # moyeu, fond a z=0
     p = U(parts)
     # --- accouplement broche a froid sur le pignon conserve (Ø PIGN_D) ---
-    # trou rond sous-cote : en pressant, les dents du pignon taillent leurs
-    # cannelures dans le PETG -> entrainement positif, auto-centre, sans colle.
-    zf   = -HUB_H/2                                             # face moteur (bas du moyeu)
-    grip = cylinder(radius=(PIGN_D-GRIP_I)/2, height=grip_h)
-    grip.apply_translation([0, 0, zf+grip_h/2])
-    lead = cylinder(radius=(PIGN_D+1.0)/2, height=2.0)          # lamage d'amorce a l'entree
-    lead.apply_translation([0, 0, zf+1.0])
-    pilot = cylinder(radius=(SHAFT_D+0.3)/2, height=HUB_H+2)    # pilote centrage / ejection (traversant)
+    # trou rond sous-cote : en pressant, les dents du pignon taillent leurs cannelures
+    # dans le PETG -> entrainement positif, auto-centre, sans colle. Gros alesage = face
+    # moteur, debouche EN BAS (z=0) : c'est la face posee sur le plateau.
+    grip  = cylinder(radius=(PIGN_D-GRIP_I)/2, height=grip_h, transform=TR([0, 0, grip_h/2]))
+    lead  = cylinder(radius=(PIGN_D+1.0)/2, height=2.0, transform=TR([0, 0, 1.0]))  # lamage d'amorce
+    pilot = cylinder(radius=(SHAFT_D+0.3)/2, height=HUB_H+2, transform=TR([0, 0, HUB_H/2]))  # traversant
     p = D([p, grip, lead, pilot])
     if ccw: p.apply_scale([1, -1, 1]); p.fix_normals()
     return p

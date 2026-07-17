@@ -57,6 +57,8 @@ tunz()       plafond de tunnel 70→58 ; ARCH=11 cambrure
 HX=155       écoutille 108×72 ; plinthe SEATA/SEATB ; vis capot ±52/±34
 PYX=240, PYY=66   pylônes (ce sont EUX qui écartent les hélices) ; MOT_Z=76
 GDX=275      anneaux ; SADDLE_ID=32.4 berceau (bagues TPU 24/27.7/30)
+PROP_ALPHA=30  hélices : pale fine posée sur son bord de fuite (rampe) ; PROP_TH=2.8 épaisseur ;
+             PROP_CH0/CH1 corde emplanture/bout ; PROP_SWEEP flèche ; PROP_FOOT méplat. Support court. Piège 19.
 BOW_PATCH    True = bateau déjà imprimé (pont 26→296.5 + bouchons PETG pièce 11) ;
              False = nouvelle impression (pont rallongé 22.3→297.1, pas de bouchons). Piège 16.
 BKX0/BKX1=95→110, BKGAP=0.3   cloison avant (pièce 13) : ferme le compartiment, ouvert
@@ -217,6 +219,37 @@ Piles : AUCUNE pièce. Le support 6 piles du commerce se coince à 45° dans un 
       prolonger `XNi` jusqu'à `XJ+T`, de sorte que seule la région pont-bras (|y| < yi) reste
       pleine → cloison de 1,6 mm venue de fonderie, sponsons toujours creux. Vérifier alors que
       `13` est bien supprimée (elle entrerait en collision).
+
+19. **Les hélices — TROIS refontes, et la leçon = ne pas passer d'un extrême à l'autre.**
+    Chaque étape a un piège distinct ; c'est l'utilisateur qui a recadré à chaque fois.
+    - **Étape 0 — calage inversé (`sin`/`cos`).** `beta = atan2(P, 2πr)` est mesuré **depuis le
+      plan de rotation** : la corde se projette en `cos(beta)` sur le tangentiel, `sin(beta)` sur
+      l'axial. Le code faisait l'inverse → calage `90−beta`, 77° en bout au lieu de 13°, pas réel
+      de 1310 mm pour 72 visés. Maillage watertight, 1 corps, volume plausible : **rien** ne l'a
+      vu, et le tableau COLLISIONS n'avait **aucune paire `helices/*`**. Vu par l'utilisateur dans
+      le slicer. Test qui tue : recalculer `2πr·tan(calage)` depuis la géométrie et comparer à
+      `0.72·D`.
+    - **Étape 1 — le vrai problème était le PROFIL, pas le calage.** La pale était une **lentille
+      dont l'épaisseur tombe à ZÉRO au bord** (`th/2·sqrt(1-(2s)²)`). À 1 mm du BF en bout :
+      **0,73 mm**, < 2 extrusions → ni périmètre ni remplissage → trous, cordons, arête sale,
+      balourd. **Ce n'est pas le support qui perçait les pales : il n'y avait rien à percer.** Deux
+      impressions ratées. Leçon : **une pale FDM se juge à l'épaisseur de ses bords** — tout bord
+      < ~0,9 mm (≈2 extrusions) est un trou en puissance.
+    - **Étape 2 — MA SUR-CORRECTION : le coin plein.** J'ai fait un `blade_wedge_sec` à **fond
+      plat 100 % posé sur le plateau**. Zéro support, oui, mais **dessous rugueux** (plateau
+      texturé) et pale pleine. L'utilisateur : « tu vas d'un extrême à l'autre » — la lentille
+      était 100 % en l'air, le coin 100 % sur le plateau. **Piège de méthode : quand on corrige un
+      défaut, viser le POINT MILIEU, pas le défaut opposé.**
+    - **Étape 3 (RETENUE) — pale FINE posée sur son BORD DE FUITE.** `blade_ramp_sec` : plaque
+      mince (`PROP_TH=2.8` vert. ≈ 2,4 mm perp.) dont le BF est une **ligne à z=0** sur toute
+      l'envergure ; la pale monte en rampe au calage `PROP_ALPHA=30°`, petit méplat `PROP_FOOT`
+      sous le BF pour la 1re couche. **Seule l'arête touche le plateau** ; le dessous (à 30°)
+      demande **un peu de support COURT (≤11 mm)**, mais les bords épais et francs font qu'il
+      **se détache sans déchirer**. C'est l'entre-deux voulu. Volume ~10 cm³ (entre 7 lentille et
+      13 coin). `PROP_ALPHA→45°` = zéro support (pas grossier) ; `→20°` = pas fin, plus de support.
+    - Paires `helices/anneaux` et `helices/pylones` désormais dans le tableau COLLISIONS (garde
+      bout de pale ≈5 mm, `ri=pd/2+5`). ⚠️ Le `except: v=0.0` du tableau affiche « ok » quand le
+      booléen **échoue** : un contrôle qui ne peut pas échouer ne contrôle rien.
 
 ## Contraintes de conception à respecter
 

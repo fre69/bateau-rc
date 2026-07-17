@@ -17,7 +17,7 @@ Un avant + un arrière = rotation sur place.
 | Garde sous tunnel | **≈13 mm** au-dessus de la flottaison |
 | Joint pont/coque | 37 à 49 mm au-dessus de la flottaison — jamais immergé |
 | Masse estimée | **~1 150 g** |
-| Hélices | 3 pales cimeterre, D100 (6 V) ou D90 (7,2 V), pas 0,72 D |
+| Hélices | 3 pales fines calage 30°, posées sur le bord de fuite, D100 (6 V) ou D90 (7,2 V) |
 | Axe hélices | 164 mm au-dessus de la quille |
 
 ---
@@ -33,7 +33,7 @@ Un avant + un arrière = rotation sur place.
 | `05_pylone_moteur` | **2** | PETG | Debout (bride en bas), **support sous la nacelle + sous la coiffe arrière-moteur** (l'arche fermée surplombe le vide). 4 périmètres, 40 %. |
 | `06_bague_moteur_24_0mm` | **2** | TPU | 100 % — souple et adhérente. Berceau Ø32,4, moteur Ø24, bague **fendue** (se clipse autour du corps). |
 | `07_anneau_protection_D100` ou `_D90` | **2** | PETG | Exporté **à plat** : anneau et pattes sur le plateau, les deux tours de fixation montent verticalement. 4 périmètres, 40 %. Prends le diamètre assorti à tes hélices. |
-| `08_helice_*_CW` + `*_CCW` | 1 de chaque | PETG | Exporté **à plat, gros alésage Ø6,4 (face moteur) contre le plateau** — garde ce sens. 4 périmètres, 40 %, couches 0,12 mm. Le dessous des pales est un surplomb de 13° (bout) à 46° (pied) : **inévitable sur toute hélice**, aucune orientation n'y échappe. Le retourner ne change rien à l'aire en surplomb (2012 vs 2010 mm² — le profil de pale est symétrique, retourner échange les deux faces sans changer une pente) et coûte **27 % de support en plus** (11 995 vs 9 480 mm³). **Réglages qui décident du démoulage, en PETG :** **couches d'interface = 0** (l'interface est quasi pleine et se soude à la pale — c'est *la* raison des supports impossibles à retirer) et **distance Z supérieure = 0,24 mm**, pas 0,2 : le slicer arrondit cet écart à un multiple de la couche, et 0,2 retombe à 0,12 = une seule couche de vide, qui colle. Support « sur le plateau uniquement » (sans effet ici — rien ne surplombe une autre pale — mais c'est la ceinture) ; XY 0,35-0,4 ; densité 8-10 %. Colonnes ≤ 12 mm : elles cassent au doigt. |
+| `08_helice_*_CW` + `*_CCW` | 1 de chaque | PETG | Pale **fine posée sur son bord de fuite** : seule cette arête (+ un petit méplat) touche le plateau, la pale monte en rampe à 30°. Orientation déjà bonne dans le STL, ne pas la coucher. 4 périmètres, 40-100 % (plus c'est dense, moins ça vibre), couches 0,12-0,16 mm. **Support « sur le plateau uniquement » activé** : il en faut un peu, COURT (≤11 mm), sous le dessous de la pale — jamais sur le dessus visible. Les bords sont épais et francs (~2,4 mm) : le support s'en détache sans déchirer (c'était ça le drame de la v1 à bords en lame). Distance Z sup. = 0,24 mm, interface 0. |
 | `09_pile_factice_AA` | 1 | PETG | 100 %. Bouche le 6ᵉ logement du support (5 AA = 6 V), vis M3 traversante pour fermer le circuit. |
 | `10_bouton_capot` | **2** | PETG | À plat, 100 %. Vis M3 (~16 mm) collée dedans à la cyano → bouton moleté. |
 | `11_bouchon_etrave_x2` | **2** | PETG | 100 %, collerette sur le plateau et téton en l'air : **aucun support**. Les deux sont dans le fichier et sont **symétriques, pas identiques** — ne pas imprimer deux fois le même. Rustine, voir §3. |
@@ -128,6 +128,17 @@ remplit seul — rien à imprimer, mais ne l'oublie pas au collage.
 ---
 
 ## 4. Hélices — le point à ne pas rater
+
+**Forme des pales.** Pales **fines posées sur leur bord de fuite** : cette arête court sur le
+plateau sur toute la longueur, la pale monte en rampe à 30° de calage. Seule l'arête (et un petit
+méplat d'accroche) touche le plateau — le reste est en l'air. Il faut donc **un peu de support
+court sous la pale**, mais les bords sont **épais et francs (~2,4 mm)**, si bien que le support se
+détache sans déchirer — c'était ça le vrai problème de la première version, dont les bords en lame
+tombaient à épaisseur nulle (trous, cordons, arête sale, balourd). Calage, corde, flèche et
+épaisseur se règlent en tête de `generate_pieces.py` (`PROP_ALPHA`, `PROP_CH0/CH1`, `PROP_SWEEP`,
+`PROP_TH`). Monter `PROP_ALPHA` vers 45° supprime le support (mais pas plus grossier) ; le
+descendre affine le pas au prix de plus de support. **Ne jamais revenir à une section type
+lentille** : bords à épaisseur nulle = trous garantis (piège n°19).
 
 Les deux moteurs sont identiques et tournent dans le même sens. Deux hélices identiques =
 les couples s'additionnent → lacet permanent, même à fond tout droit.
