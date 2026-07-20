@@ -58,11 +58,38 @@ GDX, GFY  = 275.0, 16.0             # anneaux : centre x, demi-ecart des pieds (
 WIREX, WIREY = 254.0, 22.0          # passe-fils dans le pont
 # --- helices : pale FINE posee sur son BORD DE FUITE (piege n.19). La pale est une
 # plaque mince d'epaisseur PROP_TH qui repose sur une ligne (le bord de fuite, a z=0 sur
-# toute l'envergure) et monte en rampe au calage PROP_ALPHA. Seule l'arete touche le
-# plateau ; le dessous (a PROP_ALPHA du plateau) demande un peu de support COURT, mais les
-# bords sont EPAIS et FRANCS -> le support ne dechire rien (contrairement a la lentille v1
+# toute l'envergure) et monte en rampe au calage local. Seule l'arete touche le
+# plateau ; le dessous (a l'angle de calage du plateau) demande un peu de support COURT, mais
+# les bords sont EPAIS et FRANCS -> le support ne dechire rien (contrairement a la lentille v1
 # a bords en lame). Ni pleine (coin), ni flottante (lentille) : l'entre-deux voulu.
-PROP_ALPHA = 30.0                   # calage des pales (deg) = pente de la rampe / du dessous
+#
+# VRILLAGE (piege n.20) : le calage DECROIT de l'emplanture au bout. Une pale a calage
+# CONSTANT de 30 deg donne un pas/D de 1.36 -- entre 2 et 3 fois ce que doit encaisser un
+# moteur de jouet en 6 V : c'est ce qui faisait 3 A et coupait la carte RC. Le couple absorbe
+# est pondere en r^3, donc c'est le BOUT qui coute ; le vrillage tape exactement la ou il faut
+# et laisse l'emplanture a 30 deg, ou la corde est large et ou la rampe doit rester imprimable.
+# Bonus : la hauteur de rampe au bout tombe de 6.4 a 3.1 mm -> support plus COURT qu'avant.
+#
+# UN SEUL LEVIER (piege n.20 bis) : on garde le DIAMETRE (95, quasi les 100 d'origine -- le
+# disque ne perd que 10 % de surface, donc l'allure et l'autorite au differentiel restent) et
+# on ne joue QUE sur PROP_ALPHA1. Deux parametres bouges ensemble = plus moyen de savoir lequel
+# reculer si la poussee est faible. Le diametre n'est PAS une variable de reglage ici.
+PROP_ALPHA0 = 30.0                  # calage a l'emplanture (deg) -- fixe la pente de rampe max
+PROP_ALPHA1 = 15.0                  # calage au bout (deg) -- SEUL parametre de reglage de la conso
+PROP_D      = 95.0                  # diametre retenu (fige : ne pas s'en servir pour regler)
+# On n'exporte QUE le calage retenu : 2 STL (CW + CCW), pas une bibliotheque de variantes. Le
+# repli se regenere en changeant PROP_ALPHA1 ci-dessus et en relancant -- un STL de rechange sur
+# le disque ne dit pas ce qu'il vaut, alors que le tableau de fin de run, lui, donne l'echelle.
+PROP_LADDER = [22.0, 20.0, 18.0, 16.0, 15.0, 14.0, 12.0]   # affiche seulement (cf. tableau)
+# NOMBRE DE PALES. Passe de 3 a 2 pour tenir sous 2 A. Contre-intuitif mais verifie : a
+# courant EGAL, une bipale a 15 deg pousse PLUS qu'une tripale a 10 deg (x0.69-0.95 contre
+# x0.64-0.85). Retirer une pale enleve de la solidite sans degrader la geometrie des pales
+# restantes, alors que baisser le calage fait travailler les trois a mauvais rendement (la
+# trainee de profil ne baisse pas avec la portance). Moins de matiere, moins d'impression.
+PROP_NB = 2
+# ⚠ NE PAS reduire la corde pour gagner du courant : PROP_TH est fixe (impression), donc une
+# corde plus etroite EPAISSIT la pale en relatif (t/c 23 % -> 33 %) et la trainee de profil
+# annule le gain. Verifie : corde x0.70 = meme courant que corde pleine, mais -20 % de poussee.
 PROP_CH0, PROP_CH1 = 22.0, 12.0     # corde a l'emplanture / au bout
 PROP_SWEEP = 6.0                    # fleche (garde l'allure cimeterre)
 PROP_TH    = 2.8                    # epaisseur verticale (~2.4 mm perpendiculaire a 30 deg)
@@ -485,27 +512,30 @@ def make_guard(pd=100.0):
     return D([U(parts), U(cuts)])
 
 # ------------------------------------------------------------------ helices
-def blade_ramp_sec(r, Dm):
+def blade_ramp_sec(r, Dm, a1=None):
     """Section de pale FINE (plaque d'epaisseur PROP_TH) posee sur son BORD DE FUITE : le BF
     est a z=0 (une ligne sur le plateau, sur toute l'envergure) et la pale monte en rampe au
-    calage PROP_ALPHA. Un petit meplat PROP_FOOT sous le BF accroche la 1re couche. Bords
-    francs et epais (pas de lame) -> le support court sous le dessous ne dechire rien (piege
-    n.19). 6 points, compte CONSTANT sur toutes les stations (impose par loft)."""
+    calage local, VRILLE de PROP_ALPHA0 (emplanture) a PROP_ALPHA1 (bout). Un petit meplat
+    PROP_FOOT sous le BF accroche la 1re couche. Bords francs et epais (pas de lame) -> le
+    support court sous le dessous ne dechire rien (piege n.19). 6 points, compte CONSTANT sur
+    toutes les stations (impose par loft)."""
     R = Dm/2; tt = float(np.clip((r-9)/(R-9), 0.0, 1.0))
     c   = PROP_CH0 - (PROP_CH0-PROP_CH1)*tt              # corde
     swp = -0.5 - PROP_SWEEP*tt**1.8                     # fleche (cimeterre)
-    a   = math.radians(PROP_ALPHA); tv = PROP_TH; foot = PROP_FOOT
+    a1  = PROP_ALPHA1 if a1 is None else a1
+    alp = PROP_ALPHA0 + (a1-PROP_ALPHA0)*tt              # calage vrille (piege n.20)
+    a   = math.radians(alp); tv = PROP_TH; foot = PROP_FOOT
     hb  = (c-foot)*math.tan(a)                          # hauteur du BA (bas de la plaque)
     pts = [(0.0, 0.0), (foot, 0.0), (c, hb),           # dessous : meplat BF puis rampe -> BA
            (c, hb+tv), (foot, tv), (0.0, tv)]          # dessus : BA -> retour vers le BF
     return [((u - c/2) + swp, r, z) for (u, z) in pts]
 
-def make_prop(Dm, ccw=False):
+def make_prop(Dm, ccw=False, a1=None):
     R = Dm/2
-    bl = loft([blade_ramp_sec(r, Dm) for r in np.linspace(7.0, R-0.5, 20)])
+    bl = loft([blade_ramp_sec(r, Dm, a1) for r in np.linspace(7.0, R-0.5, 20)])
     parts = []
-    for k in range(3):
-        b = bl.copy(); b.apply_transform(RX(k*2*np.pi/3, [0, 0, 1])); parts.append(b)
+    for k in range(PROP_NB):
+        b = bl.copy(); b.apply_transform(RX(k*2*np.pi/PROP_NB, [0, 0, 1])); parts.append(b)
     grip_h = PIGN_L + 2.0                                       # profondeur de prise sur le pignon
     HUB_H  = grip_h + 6.0                                       # + fond plein derriere le pignon
     parts.append(cylinder(radius=9.5, height=HUB_H, transform=TR([0, 0, HUB_H/2])))  # moyeu, fond a z=0
@@ -560,17 +590,16 @@ if __name__ == "__main__":
     gasket = save(grounded(make_gasket()), "04_joint_capot_TPU")
     pylon  = save(make_pylon(), "05_pylone_moteur_x2")
     save(make_shim(24.0), "06_bague_moteur_24_0mm")             # corps moteur Ø24 (mesure)
-    guards = {}
-    for pd in (100.0, 90.0):
-        g = make_guard(pd)
-        gp = g.copy(); gp.apply_transform(RX(-np.pi/2, [0, 1, 0]))   # anneau a plat sur le plateau
-        guards[pd] = g
-        save(grounded(gp), "07_anneau_protection_D%d_x2" % pd)
-    props = {}
-    for Dm in (100.0, 90.0):                                         # D100 (6 V) / D90 (option 7,2 V)
-        pr = save(grounded(make_prop(Dm, False)), "08_helice_D%d_pignon7_CW" % Dm)
-        save(grounded(make_prop(Dm, True)),  "08_helice_D%d_pignon7_CCW" % Dm)
-        props[Dm] = pr
+    # Le calage CONSTANT de 30 deg tirait 3 A et coupait la carte RC (piege n.20). Diametre
+    # FIGE a PROP_D : un seul jeu d'anneaux, et le seul parametre qui varie est le calage
+    # de bout -> si la poussee manque, on sait exactement quoi reculer.
+    g = make_guard(PROP_D)
+    gp = g.copy(); gp.apply_transform(RX(-np.pi/2, [0, 1, 0]))       # anneau a plat sur le plateau
+    guards = {PROP_D: g}
+    save(grounded(gp), "07_anneau_protection_D%d_x2" % PROP_D)
+    tag = "D%d_cal%d-%d" % (PROP_D, PROP_ALPHA0, PROP_ALPHA1)
+    prop = save(grounded(make_prop(PROP_D, False)), "08_helice_%s_pignon7_CW" % tag)
+    save(grounded(make_prop(PROP_D, True)),         "08_helice_%s_pignon7_CCW" % tag)
     save(make_dummy(), "09_pile_factice_AA")
     save(make_knob(),  "10_bouton_capot_x2")
     plugs = make_bow_plug() if BOW_PATCH else None     # rustine seulement (piege n.16)
@@ -597,7 +626,7 @@ if __name__ == "__main__":
     p1 = py.copy(); p1.apply_translation([PYX, PYY, ZMOUNT])
     p2 = py.copy(); p2.apply_translation([PYX, -PYY, ZMOUNT])
     asm["pylones"] = U([p1, p2])
-    gu = make_guard(100.0)
+    gu = make_guard(PROP_D)
     g1 = gu.copy(); g1.apply_translation([GDX, PYY, ZMOUNT])
     g2 = gu.copy(); g2.apply_translation([GDX, -PYY, ZMOUNT])
     asm["anneaux"] = U([g1, g2])
@@ -611,7 +640,7 @@ if __name__ == "__main__":
     asm["moteurs"] = U(mots)
     prs = []
     for sg, ccw in ((1, False), (-1, True)):
-        pr = make_prop(100.0, ccw)
+        pr = make_prop(PROP_D, ccw)
         pr.apply_transform(RX(np.pi/2, [0, 1, 0]))
         pr.apply_transform(RX(sg*0.5, [1, 0, 0]))
         pr.apply_translation([GDX, sg*PYY, AX])
@@ -637,8 +666,8 @@ if __name__ == "__main__":
     out = solid(0.0, False, True)
     mh = hull.volume/1000*1.27; md = deck.volume/1000*1.27
     mcap = canopy.volume/1000*1.27
-    mpy = 2*pylon.volume/1000*1.27*0.62; mgu = 2*guards[100].volume/1000*1.27*0.62
-    mpr = 2*props[100].volume/1000*1.27*0.62
+    mpy = 2*pylon.volume/1000*1.27*0.62; mgu = 2*guards[PROP_D].volume/1000*1.27*0.62
+    mpr = 2*prop.volume/1000*1.27*0.62
     comps = [("coque", mh, out.center_mass[0]), ("pont", md, deck.center_mass[0]),
              ("capot+joint", mcap+8, HX), ("pylones", mpy, PYX), ("anneaux", mgu, GDX),
              ("helices", mpr, GDX), ("moteurs", 140.0, PYX+NAC_X), ("pack 5xAA+support", 175.0, HX),
@@ -653,12 +682,118 @@ if __name__ == "__main__":
         if sl.volume/1000.0 >= mt:
             draft = Tt; xb = sl.center_mass[0]; break
     print("hors-tout coque : %.0f x %.0f x %.0f mm | envergure anneaux %.0f mm" %
-          (*out.extents, 2*(PYY+62)))
+          (*out.extents, 2*(PYY+PROP_D/2+10.5)))
     print("tirant d'eau %.1f mm | CB a x=%.0f (delta CG-CB %.0f mm, corriger en glissant le pack)" % (draft, xb, xg-xb))
     print("garde sous tunnel %.1f mm | franc-bord AV %.1f / AR %.1f mm" %
           (tunz(L)-draft, sheer(0)-draft, sheer(280)-draft))
     print("joint pont/coque a %.0f-%.0f mm au-dessus de la flottaison" % (SH_AFT-draft, SH_BOW-draft))
-    print("axe helices z=%.1f | bas du disque D100 a %.1f au-dessus de ZMOUNT" % (AX, MOT_Z-50))
+    print("axe helices z=%.1f | bas du disque D%d a %.1f au-dessus de ZMOUNT" % (AX, PROP_D, MOT_Z-PROP_D/2))
+
+    # ---------------------------------------------- helices : couple ET poussee (piege n.20)
+    # Le calage est relu sur la GEOMETRIE EMISE, pas sur les parametres (piege n.19).
+    # Modele : element de pale + quantite de mouvement, en STATIQUE (bateau a l'arret, cas le
+    # plus dur pour le moteur). Il remplace un indice ad hoc en c.r^3.tan(calage) qui melangeait
+    # deux modeles sans le dire et, surtout, ne savait PAS calculer la poussee -- or c'est elle
+    # qui dit si l'helice sera "trop molle", pas le couple.
+    RHO = 1.2
+    def _sections(a1, Dm, n=70):
+        """corde et calage relus sur les sections reellement lofttees (SI : m, rad).
+        La corde est en mm ABSOLUS a tout diametre : surtout ne pas fabriquer une variante
+        de diametre par homothetie, il faut la regenerer avec son propre Dm."""
+        rr = np.linspace(9.0, Dm/2-0.5, n)
+        c, ta = [], []
+        for r in rr:
+            s = blade_ramp_sec(r, Dm, a1)
+            xs = [p[0] for p in s]
+            c.append(max(xs)-min(xs))                       # corde = largeur de la section
+            (x1, _, z1), (x2, _, z2) = s[1], s[2]           # dessous : meplat -> bord d'attaque
+            ta.append((z2-z1)/(x2-x1))                      # tan(calage)
+        return rr/1000.0, np.array(c)/1000.0, np.arctan(np.array(ta))
+
+    def _bem(a1, om, Dm=None, nb=None, a_cl=5.0, clmax=1.1):
+        Dm = PROP_D if Dm is None else Dm
+        nb = PROP_NB if nb is None else nb
+        r, c, beta = _sections(a1, Dm)
+        # trainee de profil fonction de l'EPAISSEUR RELATIVE : PROP_TH etant fixe, une corde
+        # etroite epaissit la pale en relatif et la rend trainante. Un cd0 constant
+        # recompenserait a tort toute reduction de corde -- erreur reelle, evitee de justesse.
+        tc = (PROP_TH/1000.0)*np.cos(beta)/c
+        cd0 = 0.025 + 0.10*tc + 1.8*tc**2
+        dr = r[1]-r[0]; vi = np.full_like(r, 3.0)
+        for _ in range(120):                                 # point fixe amorti sur vi
+            Ut = om*r; W2 = Ut**2 + vi**2
+            phi = np.arctan2(vi, Ut); al = beta - phi
+            cl = np.clip(a_cl*al, -clmax, clmax); cd = cd0 + 0.9*al*al
+            dT = nb*0.5*RHO*W2*c*(cl*np.cos(phi) - cd*np.sin(phi))
+            vi += 0.25*(np.sqrt(np.maximum(dT, 0)/(4*np.pi*RHO*r)) - vi)
+        Ut = om*r; W2 = Ut**2 + vi**2
+        phi = np.arctan2(vi, Ut); al = beta - phi
+        cl = np.clip(a_cl*al, -clmax, clmax); cd = cd0 + 0.9*al*al
+        T = np.sum(nb*0.5*RHO*W2*c*(cl*np.cos(phi) - cd*np.sin(phi)))*dr
+        Q = np.sum(nb*0.5*RHO*W2*c*(cl*np.sin(phi) + cd*np.cos(phi))*r)*dr
+        i75 = int(np.argmin(abs(r-0.375*Dm/1000.0)))         # 75 % du rayon DE CETTE helice
+        return T, Q, 2*math.pi*r[i75]*math.tan(beta[i75])*1000.0
+
+    OM = 1200.0                                              # regime de comparaison (rad/s)
+    # reference = D100 a calage CONSTANT 30 deg, la seule geometrie dont on connaisse le courant
+    Tref, Qref, Pref = _bem(PROP_ALPHA0, OM, Dm=100.0, nb=3)   # l'ancienne : D100, 30 deg, TRIpale
+    # Le courant ne suit PAS le couple : en allegeant l'helice le moteur ACCELERE, la force
+    # contre-electromotrice monte et le courant ne retombe que lentement. Il faut resoudre le
+    # point de fonctionnement.
+    #   MESURES REELLES (Francois, juillet 2026) : a vide 0.5 A, 0.25 A apres lubrification ;
+    #   avec l'helice D100 calage 30 constant, 3 A -> la carte RC se met en securite. 6 V.
+    # Le courant a vide donne le couple de FROTTEMENT : l'helice absorbe k(I-I0), pas k.I.
+    # En ecrivant les deux points, k se SIMPLIFIE : la prediction ne depend plus que de la
+    # resistance serie R et du RAPPORT de couple (bien plus fiable qu'un couple absolu).
+    MOT_V, MOT_I0, MOT_IMES = 6.0, 0.25, 3.0
+    RSER = (0.7, 0.9, 1.1, 1.3)     # bornes retenues : hors de la, le regime a vide implique
+                                    # (9000-22000 tr/min) ou le courant de calage (3.5-9 A)
+                                    # sortent du credible pour un bidon 24x30 (~RS-370).
+    def _oper(Cq, Ct):
+        """-> [(courant, poussee/reference)] sur la plage de resistance serie plausible."""
+        Cq_ref, Ct_ref = Qref/OM**2, Tref/OM**2
+        out = []
+        for R in RSER:
+            fem = MOT_V - MOT_IMES*R                     # fem au point MESURE
+            if fem <= 0: continue
+            k = (Cq_ref*fem**2/(MOT_IMES-MOT_I0))**(1/3.0)
+            A = (MOT_IMES-MOT_I0)*(Cq/Cq_ref)/fem**2     # k elimine
+            lo, hi = MOT_I0+1e-9, MOT_IMES               # dichotomie sur le courant
+            for _ in range(120):
+                x = 0.5*(lo+hi)
+                if (x-MOT_I0) - A*(MOT_V-x*R)**2 > 0: hi = x
+                else: lo = x
+            I = 0.5*(lo+hi)
+            om, om_ref = (MOT_V-I*R)/k, fem/k
+            out.append((I, (Ct*om**2)/(Ct_ref*om_ref**2)))
+        return out
+
+    print("\n=== HELICES : couple, poussee et conso (element de pale, statique) ===")
+    print("%-22s %6s %7s %8s %10s %s" %
+          ("helice", "pas/D", "couple", "poussee", "courant", ""))
+    print("%-22s %6.2f %7s %8s %8.1f A   <-- MESURE : carte RC en securite" %
+          ("D100 3pales cal.30", Pref/100.0, "ref", "ref", 3.0))
+    for a1 in sorted(set(PROP_LADDER) | {PROP_ALPHA1}, reverse=True):
+        T, Q, P75 = _bem(a1, OM)
+        op = _oper(Q/OM**2, Ct=T/OM**2)
+        print("%-22s %6.2f  x%.2f  x%.2f-%.2f  %.1f-%.1f A   %s" %
+              ("D%d %dpales cal.%d->%d" % (PROP_D, PROP_NB, PROP_ALPHA0, a1), P75/PROP_D, Q/Qref,
+               min(p for _, p in op), max(p for _, p in op),
+               min(a for a, _ in op), max(a for a, _ in op),
+               "<== LES 2 STL SORTIS (CW+CCW)" if a1 == PROP_ALPHA1 else ""))
+    print("Seules les 2 helices marquees sont exportees ; les autres lignes sont une ECHELLE,")
+    print("pas des fichiers (changer PROP_ALPHA1 et relancer).")
+    print("!! LE COURANT NE SUIT PAS LE COUPLE. Le couple est bien divise par ~2, mais le")
+    print("   moteur ACCELERE en retour : le courant ne baisse que de ~20-30 %, tandis que la")
+    print("   POUSSEE se maintient (l'ancienne helice etranglait le moteur). Baisser encore le")
+    print("   calage coute donc tres peu de poussee -- c'est la marge de manoeuvre si ca coupe.")
+    print("Modele ancre sur les MESURES : %.2f A a vide, %.1f A avec l'ancienne helice, %.0f V." %
+          (MOT_I0, MOT_IMES, MOT_V))
+    print("Reste inconnue la resistance serie, balayee sur %.1f-%.1f ohm (au-dela, le regime a"
+          % (RSER[0], RSER[-1]))
+    print("vide implique par le modele devient invraisemblable pour ce moteur). Le courant a")
+    print("vide n'influe presque pas (+0.03 A entre 0.25 et 0.5 A) : lubrifier soulage le")
+    print("moteur, mais ne resout pas le probleme d'helice. A confirmer a l'AMPEREMETRE.")
     print("\n=== COLLISIONS D'ASSEMBLAGE (les contacts plans comptent 0) ===")
     for a, b in [("coque", "pont"), ("pont", "pylones"), ("pont", "anneaux"),
                  ("pont", "capot"), ("coque", "pylones"), ("coque", "anneaux"),

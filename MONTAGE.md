@@ -17,7 +17,7 @@ Un avant + un arrière = rotation sur place.
 | Garde sous tunnel | **≈13 mm** au-dessus de la flottaison |
 | Joint pont/coque | 37 à 49 mm au-dessus de la flottaison — jamais immergé |
 | Masse estimée | **~1 150 g** |
-| Hélices | 3 pales fines calage 30°, posées sur le bord de fuite, D100 (6 V) ou D90 (7,2 V) |
+| Hélices | **2** pales fines **vrillées** D95, posées sur le bord de fuite. Calage 30° à l'emplanture → **15°** au bout (pas/D 0,84) |
 | Axe hélices | 164 mm au-dessus de la quille |
 
 ---
@@ -32,8 +32,8 @@ Un avant + un arrière = rotation sur place.
 | `04_joint_capot_TPU` | 1 | TPU 95A | 100 %, pas d'ironing. |
 | `05_pylone_moteur` | **2** | PETG | Debout (bride en bas), **support sous la nacelle + sous la coiffe arrière-moteur** (l'arche fermée surplombe le vide). 4 périmètres, 40 %. |
 | `06_bague_moteur_24_0mm` | **2** | TPU | 100 % — souple et adhérente. Berceau Ø32,4, moteur Ø24, bague **fendue** (se clipse autour du corps). |
-| `07_anneau_protection_D100` ou `_D90` | **2** | PETG | Exporté **à plat** : anneau et pattes sur le plateau, les deux tours de fixation montent verticalement. 4 périmètres, 40 %. Prends le diamètre assorti à tes hélices. |
-| `08_helice_*_CW` + `*_CCW` | 1 de chaque | PETG | Pale **fine posée sur son bord de fuite** : seule cette arête (+ un petit méplat) touche le plateau, la pale monte en rampe à 30°. Orientation déjà bonne dans le STL, ne pas la coucher. 4 périmètres, 40-100 % (plus c'est dense, moins ça vibre), couches 0,12-0,16 mm. **Support « sur le plateau uniquement » activé** : il en faut un peu, COURT (≤11 mm), sous le dessous de la pale — jamais sur le dessus visible. Les bords sont épais et francs (~2,4 mm) : le support s'en détache sans déchirer (c'était ça le drame de la v1 à bords en lame). Distance Z sup. = 0,24 mm, interface 0. |
+| `07_anneau_protection_D95` | **2** | PETG | Exporté **à plat** : anneau et pattes sur le plateau, les deux tours de fixation montent verticalement. 4 périmètres, 40 %. Un seul diamètre — les deux variantes d'hélice ont la même envergure. |
+| `08_helice_*_CW` + `*_CCW` | 1 de chaque | PETG | Pale **fine posée sur son bord de fuite** : seule cette arête (+ un petit méplat) touche le plateau, la pale monte en rampe (30° à l'emplanture, 15° au bout — la pale est **vrillée**, c'est voulu ; le nom du fichier porte les deux calages). Orientation déjà bonne dans le STL, ne pas la coucher. 4 périmètres, 40-100 % (plus c'est dense, moins ça vibre), couches 0,12-0,16 mm. **Support « sur le plateau uniquement » activé** : il en faut un peu, COURT (≤11 mm), sous le dessous de la pale — jamais sur le dessus visible. Les bords sont épais et francs (~2,4 mm) : le support s'en détache sans déchirer (c'était ça le drame de la v1 à bords en lame). Distance Z sup. = 0,24 mm, interface 0. |
 | `09_pile_factice_AA` | 1 | PETG | 100 %. Bouche le 6ᵉ logement du support (5 AA = 6 V), vis M3 traversante pour fermer le circuit. |
 | `10_bouton_capot` | **2** | PETG | À plat, 100 %. Vis M3 (~16 mm) collée dedans à la cyano → bouton moleté. |
 | `11_bouchon_etrave_x2` | **2** | PETG | 100 %, collerette sur le plateau et téton en l'air : **aucun support**. Les deux sont dans le fichier et sont **symétriques, pas identiques** — ne pas imprimer deux fois le même. Rustine, voir §3. |
@@ -213,8 +213,98 @@ d'assise, pas de carter imprimé, pas de contacts à inventer : le bloc du comme
 
 **Si tu tentes 7,2 V** (6 piles réelles) : poussée +44 % mais échauffement ×2. Le risque n'est
 pas les moteurs (refroidis par l'hélice) mais **la carte RC**, seule pièce irremplaçable.
-Si tu le fais : hélices **D90** + anneaux D90, et contrôle 30 s plein gaz main sur le moteur.
+Si tu le fais : regénère les hélices avec `PROP_ALPHA1 = 12` (jamais au-dessus de 15° en 7,2 V),
+et contrôle 30 s plein gaz main sur le moteur.
 **Jamais 8 piles (9,6 V).**
+
+### Conso : pourquoi les hélices sont vrillées, et comment les régler
+
+Les premières hélices D100 avaient un calage **constant de 30°** sur toute la pale. Comme le pas
+vaut `2πr·tan(calage)`, un calage constant fait grimper le pas linéairement avec le rayon :
+**pas/D = 1,36**, soit 2 à 3 fois ce qu'encaisse un moteur de jouet en 6 V. Mesuré **3 A par
+moteur**, la carte RC se mettait en sécurité.
+
+Le couple absorbé est pondéré en **r³** : c'est le bout de pale qui coûte, pas l'emplanture. Les
+hélices sont donc **vrillées** — 30° au moyeu (corde large, la rampe d'impression doit y rester
+franche), **15° au bout**. Pas/D ramené à **0,84**, couple **÷2,2**, courant estimé **2,0-2,5 A**.
+
+Le modèle est **ancré sur trois mesures réelles** : 6 V, **0,5 A à vide** (0,25 A après
+lubrification), **3 A avec l'ancienne hélice**. Le courant à vide donne le couple de frottement,
+ce qui élimine une inconnue. Reste la résistance série, balayée de 0,7 à 1,3 Ω — d'où la
+fourchette.
+
+À noter : **lubrifier n'a quasiment aucun effet sur ce problème** (0,25 A au lieu de 0,5 A à vide
+ne déplace le résultat en charge que de 0,03 A). Ça soulage le moteur et c'est toujours bon à
+prendre, mais le problème est bien dans l'hélice.
+
+⚠️ Ces chiffres sortent d'un modèle (élément de pale + quantité de mouvement, à l'arrêt). Les
+**rapports** entre deux hélices sont fiables ; les valeurs absolues le sont moins. **Contrôle à
+l'ampèremètre en série avec un moteur, plein gaz, bateau tenu à la main.**
+
+**Le diamètre reste à 95 mm** — c'était un choix, pas un oubli. Rétrécir l'hélice aurait marché
+aussi, mais on perd deux fois : l'allure du bateau, et la **surface de disque**, qui est ce qui
+donne la poussée à basse vitesse et donc l'autorité au différentiel (c'est en tournant de
+grandes pales qu'il manœuvre). À 95 mm le disque ne perd que 10 % contre le D100 d'origine.
+
+**Un seul bouton de réglage : le calage de bout** (`PROP_ALPHA1`). Le diamètre, la corde et les
+anneaux ne bougent pas — si tu changes quelque chose, tu sais exactement quoi.
+
+| Hélice D95 | pas/D | couple | poussée | courant |
+|---|---|---|---|---|
+| *(ancienne, 3 pales D100, 30° const.)* | 1,37 | réf | réf | **3,0 A mesurés** ← coupait |
+| 3 pales, bout 15° | 0,84 | ×0,45 | ×0,82–1,04 | 2,0–2,5 A |
+| **2 pales, bout 15° ← imprimée** | 0,84 | **×0,35** | ×0,69–0,95 | **1,7–2,3 A** |
+| 2 pales, bout 12° | 0,75 | ×0,31 | ×0,62–0,89 | 1,6–2,2 A |
+
+**Pourquoi 2 pales et pas 3.** Contre-intuitif, mais vérifié : à courant égal, une **bipale à 15°
+pousse plus qu'une tripale à 10°** (×0,69–0,95 contre ×0,64–0,85). Retirer une pale enlève de la
+solidité sans dégrader la géométrie des deux qui restent, alors que baisser le calage fait
+travailler les trois à mauvais rendement — la traînée de profil, elle, ne baisse pas avec la
+portance. Moins de matière, moins de temps d'impression, et le moteur respire.
+*Si l'allure bipale ne te plaît pas : `PROP_NB = 3` en tête du script et tu retrouves la tripale
+(colonne ci-dessus), au prix de ~0,3 A.*
+
+**⚠️ Ne réduis PAS la corde pour gagner du courant.** `PROP_TH` est figée par l'impression, donc
+une corde plus étroite **épaissit** la pale en relatif (t/c 23 % → 33 %) et la traînée annule le
+gain : corde ×0,70 donne le *même* courant que la corde pleine, avec 20 % de poussée en moins.
+
+**Deux choses contre-intuitives de plus :**
+
+**1. Tu ne perds quasiment pas de poussée en dépitchant.** Le moteur *accélère* en retour, ce qui
+compense. L'ancienne hélice **étranglait** le moteur — trop de pas pour lui, il ne montait jamais
+en régime. Mauvais appariement : on perdait sur les deux tableaux à la fois.
+
+**2. Le courant ne baisse que de ~20–30 %, pas de moitié.** Pour la même raison : le moteur qui
+accélère continue de tirer du courant. **Diviser le couple par deux ne divise pas le courant par
+deux** — et c'est pour ça que la géométrie seule ne suffit pas à garantir moins de 2 A.
+
+### Descendre sous 2 A de façon SÛRE : la tension
+
+La forme de l'hélice ne peut pas le garantir : au pire cas de la plage de résistance, la bipale
+15° reste à 2,3 A. Le seul levier qui agisse **directement** sur le courant (et non via le
+régime), c'est la **tension**.
+
+Passe le pack à **4 × AA + 2 piles factices** (4,8 V) au lieu de 5 + 1 :
+
+| Config | courant | poussée |
+|---|---|---|
+| 2 pales 15° à **6,0 V** | 1,7–2,3 A | ×0,69–0,95 |
+| 2 pales 15° à **4,8 V** | **1,2–1,7 A** | ×0,46–0,69 |
+| 3 pales 15° à **4,8 V** | 1,5–1,9 A | ×0,53–0,70 |
+
+Zéro réimpression (imprime juste une 2ᵉ `09_pile_factice_AA`), réversible en 10 secondes, et ça
+passe sous 2 A quelle que soit la résistance réelle. Le prix : la poussée retombe à la moitié.
+
+**L'ordre de marche que je recommande :** monte la bipale 15° à 6 V, **mesure**. Une seule mesure
+lève toute l'incertitude du tableau. Si tu es en dessous de 2 A, tu as gardé le maximum de
+poussée. Sinon, retire une pile — c'est immédiat et ça ne coûte rien.
+
+Il n'y a **que 2 STL** (CW et CCW) : les autres lignes sont une échelle, pas des fichiers. Pour
+en changer, modifie `PROP_ALPHA1` en tête de `generate_pieces.py` et relance. En dessous de ~13°
+la pale ne pousse plus grand-chose, au-dessus de ~22° tu retournes vers les ennuis de conso.
+
+Le tableau **HÉLICES** affiché à chaque run recalcule corde et calage **depuis la géométrie
+réellement générée**, pas depuis les paramètres.
 
 ---
 

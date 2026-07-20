@@ -57,8 +57,14 @@ tunz()       plafond de tunnel 70→58 ; ARCH=11 cambrure
 HX=155       écoutille 108×72 ; plinthe SEATA/SEATB ; vis capot ±52/±34
 PYX=240, PYY=66   pylônes (ce sont EUX qui écartent les hélices) ; MOT_Z=76
 GDX=275      anneaux ; SADDLE_ID=32.4 berceau (bagues TPU 24/27.7/30)
-PROP_ALPHA=30  hélices : pale fine posée sur son bord de fuite (rampe) ; PROP_TH=2.8 épaisseur ;
-             PROP_CH0/CH1 corde emplanture/bout ; PROP_SWEEP flèche ; PROP_FOOT méplat. Support court. Piège 19.
+PROP_ALPHA0/1=30/15  hélices : pale fine posée sur son bord de fuite (rampe), VRILLÉE de
+             l'emplanture au bout. PROP_TH=2.8 épaisseur ; PROP_CH0/CH1 corde ; PROP_SWEEP flèche ;
+             PROP_FOOT méplat. Support court. Piège 19.
+PROP_D=95    diamètre FIGÉ (le D100 tripale à calage constant tirait 3 A → carte RC en sécurité).
+             Leviers de conso, dans l'ordre d'efficacité : PROP_NB (3→2 pales, le meilleur),
+             PROP_ALPHA1, puis la TENSION (4×AA=4,8 V) qui seule garantit < 2 A. JAMAIS la corde
+             (PROP_TH figée → t/c dégradé, gain nul). On n'exporte que 2 STL (CW+CCW) ;
+             PROP_LADDER n'est qu'un affichage. Pièges 20 et 21.
 BOW_PATCH    True = bateau déjà imprimé (pont 26→296.5 + bouchons PETG pièce 11) ;
              False = nouvelle impression (pont rallongé 22.3→297.1, pas de bouchons). Piège 16.
 BKX0/BKX1=95→110, BKGAP=0.3   cloison avant (pièce 13) : ferme le compartiment, ouvert
@@ -247,9 +253,143 @@ Piles : AUCUNE pièce. Le support 6 piles du commerce se coince à 45° dans un 
       demande **un peu de support COURT (≤11 mm)**, mais les bords épais et francs font qu'il
       **se détache sans déchirer**. C'est l'entre-deux voulu. Volume ~10 cm³ (entre 7 lentille et
       13 coin). `PROP_ALPHA→45°` = zéro support (pas grossier) ; `→20°` = pas fin, plus de support.
+      *(Depuis le piège 20, `PROP_ALPHA` est devenu `PROP_ALPHA0`/`PROP_ALPHA1` : calage vrillé.)*
     - Paires `helices/anneaux` et `helices/pylones` désormais dans le tableau COLLISIONS (garde
       bout de pale ≈5 mm, `ri=pd/2+5`). ⚠️ Le `except: v=0.0` du tableau affiche « ok » quand le
       booléen **échoue** : un contrôle qui ne peut pas échouer ne contrôle rien.
+
+20. **Le calage CONSTANT était un pas de 1,36·D — 3 A par moteur, carte RC en sécurité.**
+    Quatrième passe sur les hélices, et **le seul défaut trouvé par la MESURE ÉLECTRIQUE**, pas par
+    l'œil ni par la géométrie. Une pale à calage constant de 30° donne `pas = 2πr·tan30` : ça monte
+    linéairement avec le rayon, donc **pas/D = 1,36** à 75 % — 2 à 3 fois ce qu'encaisse un moteur
+    de jouet en 6 V (une hélice aérienne de jouet vit entre 0,6 et 0,9).
+    - **La leçon de fond : le piège 19 étape 3 a résolu l'IMPRIMABILITÉ et fait passer
+      l'AÉRODYNAMIQUE à la trappe.** `PROP_ALPHA` était devenu un paramètre d'impression (pente de
+      rampe) — plus personne ne le lisait comme un calage. Quand un paramètre sert **deux** métiers,
+      celui qui n'est pas en train de faire mal se fait oublier. Le contrôle « pas réel » du piège
+      19 étape 0 **existait dans la tête, pas dans le script** : rien ne l'affichait, donc 1,36 est
+      passé. Corrigé : le run imprime un tableau **HÉLICES : pas et charge**, recalculé **depuis les
+      sections réellement lofttées** (`blade_ramp_sec`), pas depuis les paramètres.
+    - **Le bon levier n'est pas le diamètre, c'est le VRILLAGE.** Le couple absorbé est pondéré en
+      **r³** : c'est le bout qui coûte. Réduire D perd deux fois — l'allure, et la **surface de
+      disque**, donc la poussée à basse vitesse et l'autorité au différentiel (l'utilisateur :
+      « la maniabilité à tourner des grandes pales »). Réduire le calage **du bout seulement** tape
+      exactement où il faut. `PROP_ALPHA0=30` → `PROP_ALPHA1=15` à **D95** : pas/D 1,36 → **0,84**,
+      couple **÷2,2** (la cible demandée) et 1,6-2,3 A. Chiffré ensuite au BEM : à couple ÉGAL, il
+      aurait fallu descendre à **D81** en calage constant, qui pousse 11 % de moins et perd 38 %
+      de surface de disque. Le gain du vrillage est réel mais modeste — le dire tel quel.
+    - **⚠️ J'AI BOUGÉ DEUX PARAMÈTRES À LA FOIS — et c'est le vrai reproche de cette passe.**
+      Premier jet : diamètre 100→90 **et** calage constant→vrillé, alors que la demande disait
+      explicitement « la taille **ou** le pas ». Le résultat tombait juste (÷2,2) mais était
+      **irréglable** : trop mou, on ne sait pas lequel des deux reculer, et chaque essai coûte une
+      impression d'une heure. Corrigé en figeant `PROP_D` et en n'exportant que des variantes de
+      `PROP_ALPHA1` (mêmes anneaux, même corde, même envergure — une seule chose diffère).
+      **Règle : sur une pièce qu'on va régler par essais physiques, ne JAMAIS livrer deux
+      variables changées ensemble. Et quand l'utilisateur écrit "A ou B", ce "ou" est exclusif.**
+    - **Livrer l'ÉCHELLE dans le TABLEAU, le POINT dans les STL.** Un STL isolé n'apprend rien à
+      qui l'imprime, d'où le tableau : sensibilité (**~4 % de couple par degré** de calage de bout)
+      et bornes utiles (sous ~13° ça ne pousse plus, au-dessus de ~22° la conso repart). Mais
+      j'avais d'abord exporté la variante de repli **en fichier** → 4 STL pour 2 hélices, et
+      l'utilisateur : « j'ai 4 stl 95, 2 suffisent ». Il a raison : un STL de rechange sur le
+      disque ne dit pas ce qu'il vaut, ne se distingue du bon que par son nom, et se régénère en
+      changeant une ligne. **Une variante utile est une ligne de tableau, pas un fichier ; le
+      dossier `stl/` ne contient QUE ce qu'on imprime.** Le tableau marque explicitement la ligne
+      exportée. Il distingue aussi la mesure (3 A à l'ampèremètre) des **estimations** : un modèle
+      en `Q^0.75` donne un ordre de grandeur, pas une promesse, et le dire évite qu'on le prenne
+      pour une garantie.
+    - **Le vrillage IMPROVE l'impression, il ne la dégrade pas** — contre-intuitif, et c'est
+      pourquoi le piège 19 (« `→20°` = plus de support ») ne s'applique pas ici. Baisser le calage
+      **global** allonge la rampe partout ; le baisser **au bout, là où la corde est étroite**,
+      fait tomber la hauteur de rampe de 6,4 à 3,6 mm. L'emplanture (corde large, rampe de 12 mm)
+      reste à 30°. Support plus COURT qu'avant.
+    - Garde-fou : l'assemblage de contrôle monte `PROP_D` — un diamètre codé en dur ailleurs
+      ferait tester au tableau COLLISIONS une hélice qu'on n'imprime plus. Même piège attrapé sur
+      l'« envergure anneaux », qui était figée à `2*(PYY+62)` (valeur du D100).
+    - **MON MODÈLE DE COUPLE ÉTAIT UN BRICOLAGE, et il a fallu que l'utilisateur demande « tu es
+      sûr de ton calcul ? » pour que j'aille voir.** `Q ~ ∫c·r³·tan(β)dr` **mélangeait deux
+      modèles sans le dire** : le `∫c·r³` vient de la théorie de l'élément de pale, le `tan(β)`
+      d'une règle empirique (`P ∝ D⁴·pas`). Aucune dérivation ne donne ce produit. Vérifié après
+      coup contre un vrai BEM : le rapport de couple tombait juste (0,49 contre 0,45 — la cible
+      ÷2 tenait), mais **par chance** : la variante en `sin²β`, tout aussi défendable a priori,
+      donnait 0,36. Un modèle dont on ne sait pas d'où il sort n'a pas d'incertitude connue.
+    - **Le vrai coût de ce bricolage n'était pas l'imprécision, c'était le TROU.** Un indice de
+      couple ne sait pas calculer la **poussée** — or c'est elle, pas le couple, qui répond à la
+      seule question qui intéresse (« est-ce que ça va être trop mou ? »). J'ai passé quatre
+      messages à optimiser une grandeur en ignorant celle dont dépendait la décision. Le BEM dit :
+      poussée ×0,68 à ×0,9. **Quand on choisit une métrique à optimiser, vérifier qu'elle est
+      celle sur laquelle porte la décision.**
+    - **Et j'avais annoncé un COURANT sans modéliser le moteur — l'erreur la plus lourde.** Mon
+      `I ~ Q^0.75` supposait implicitement un régime constant. Faux : une hélice plus légère fait
+      **monter** le régime, la force contre-électromotrice suit, et **le courant ne retombe que
+      lentement**. En résolvant le point de fonctionnement (moteur CC ancré sur les 3 A mesurés) :
+      **2,0-2,6 A** pour le calage 15°, soit **-20 à -30 %**, alors que j'avais promis « ÷2 » puis
+      « 1,8 A ». Diviser le couple par deux ne divise PAS le courant par deux.
+    - **Le retournement complet : la poussée ne baisse quasiment pas (×0,87-1,13).** J'avais
+      annoncé « -10 à -30 % » à l'utilisateur en lisant le rapport à **régime égal** — or le
+      régime n'est jamais égal, c'est tout l'objet du couplage. L'ancienne hélice **étranglait**
+      le moteur (30-40 % du régime à vide) : mauvais appariement, on perdait sur les deux tableaux.
+      Conséquence pratique inversée : **baisser encore le calage coûte très peu de poussée**, donc
+      la marge de manœuvre est bien plus grande que je ne le croyais.
+      **Leçon : un rapport à régime égal ne veut rien dire sur une machine dont le régime est
+      libre. Toujours résoudre le POINT DE FONCTIONNEMENT charge/moteur avant de conclure.**
+    - **Paramétrer par une grandeur MESURABLE.** J'avais d'abord balayé un « rendement moteur »
+      de 45 à 85 % — abstrait, et dont la borne haute était irréaliste pour un moteur de jouet
+      tirant 3 A, ce qui tirait toute la fourchette vers le bas. Reparamétré par la **résistance
+      série** : même physique, mais l'incertitude devient mesurable. Une incertitude qu'on sait
+      mesurer vaut mieux qu'une moyenne.
+    - **DEMANDER LES MESURES QU'ON A DEJA plutôt que d'en réclamer une nouvelle.** J'allais faire
+      démonter un moteur pour un ohmmètre ; l'utilisateur avait mieux sous la main — **le courant
+      à VIDE** (0,5 A, 0,25 A lubrifié). Il donne le couple de frottement, donc l'hélice absorbe
+      `k(I-I0)` et non `k.I` ; en écrivant les deux points de fonctionnement, **`k` se simplifie**
+      et la prédiction ne dépend plus du couple ABSOLU du BEM (le maillon faible) mais seulement
+      de son RAPPORT (le maillon solide) et de `R`. Recoupement supplémentaire : le couple absolu
+      du BEM + les 3 A impliquent un régime à vide ; n'ont été gardés que les `R` donnant un
+      régime à vide et un courant de calage crédibles (9000-22000 tr/min, 3,5-9 A) → R = 0,7-1,3 Ω.
+      **Constantes de la machine : `MOT_V/MOT_I0/MOT_IMES` en dur dans le script, sourcées.**
+      Verdict : **2,0-2,5 A**, poussée ×0,82-1,04. Et le courant à vide s'avère quasi sans effet
+      sur le résultat en charge (+0,03 A) : la lubrification soulage le moteur mais ne traite pas
+      le problème d'hélice — le dire évite une fausse piste.
+    - Ce que le script imprime maintenant : couple ET poussée, en **rapports** à la géométrie qui
+      a réellement tiré 3 A (un rapport survit aux erreurs de modèle bien mieux qu'un absolu), et
+      le courant en fourchette. Corde et calage sont **relus sur les sections lofttées**.
+    - Deux bugs attrapés en intégrant le BEM, tous deux du même genre — **une variante de
+      diamètre ne se fabrique pas par homothétie** : la corde est en mm ABSOLUS à tout diamètre,
+      donc il faut régénérer les sections avec leur propre `Dm` (sinon la référence D100 sortait
+      avec une corde étirée de 5 %) ; et le rayon à 75 % doit se prendre sur **le** diamètre de
+      l'hélice évaluée, pas sur `PROP_D`.
+    - `print("... 4 %% ...")` **sans argument de formatage** affiche `%%` littéralement. Fait deux
+      fois dans la même session. Le `%%` ne s'échappe que dans une chaîne passée à `%`.
+
+21. **« Sous 2 A sûr » : la géométrie d'hélice NE PEUT PAS le garantir — et le meilleur levier
+    n'était pas celui que je poussais depuis quatre messages.**
+    - **Le nombre de pales bat le calage, et je ne l'avais jamais testé.** À courant égal, une
+      **bipale à 15° pousse plus qu'une tripale à 10°** (×0,69-0,95 contre ×0,64-0,85). Retirer
+      une pale enlève de la solidité sans toucher à la géométrie des pales restantes ; baisser le
+      calage fait travailler *toutes* les pales à mauvais rendement, parce que la traînée de
+      profil ne baisse pas avec la portance. J'avais passé quatre passes à optimiser `PROP_ALPHA1`
+      sans jamais remettre en cause `range(3)`, codé en dur depuis le début. **Ce qui n'est pas un
+      paramètre n'est jamais remis en question : inventorier les constantes en dur AVANT
+      d'optimiser celles qui portent déjà un nom.**
+    - **Réduire la corde est un piège, et mon modèle l'encourageait.** `PROP_TH` est figée par
+      l'impression : une corde plus étroite **épaissit** la pale en relatif (t/c 23 % → 33 %). Or
+      mon BEM avait un `cd0` **constant**, donc il ne voyait que la surface qui diminue et
+      recommandait joyeusement des pales-briques. Corrigé en `cd0(t/c)` : corde ×0,70 donne le
+      *même* courant que la corde pleine, pour 20 % de poussée en moins — un pur perdant.
+      **Un coefficient constant dans un modèle est une hypothèse cachée ; celui qui ne varie pas
+      est celui qui ment quand on optimise justement dans sa direction.**
+    - **Le levier qui garantit, c'est la TENSION.** Le courant vaut `(V-fem)/R` : la tension agit
+      *directement* dessus, la géométrie seulement *indirectement* (via le régime, qui remonte et
+      compense). D'où le plafond : au pire cas de `R`, aucune hélice ne descend sous 2 A à 6 V.
+      À 4,8 V (4×AA + 2 factices, zéro réimpression, réversible) : 1,2-1,7 A. **Quand un objectif
+      résiste à tous les leviers d'un même domaine, c'est que le bon levier est dans un autre.**
+    - Méthode : à diamètre et puissance absorbée donnés, la poussée est fixée par la quantité de
+      mouvement (`T ~ (2ρA·P²)^⅓ × FM`). Donc **peu importe par quel levier on retire la charge** —
+      ce qui compte est de garder le DISQUE et un bon rendement de pale. Ça explique pourquoi tous
+      les candidats d'une recherche en grille tombaient sur la même poussée à courant égal, et ça
+      dit où chercher : la solidité et le rendement, pas le diamètre.
+    - Conseil livré : **monter la bipale à 6 V et MESURER**. Une mesure lève toute l'incertitude
+      d'un coup ; retirer une pile reste possible en 10 s si ça ne passe pas. Ne pas faire
+      réimprimer sur la foi d'un pire cas modélisé quand une mesure est à portée de main.
 
 ## Contraintes de conception à respecter
 
